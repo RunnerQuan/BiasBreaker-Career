@@ -217,7 +217,7 @@ button {
   z-index: 2;
   width: min(1040px, calc(100% - 48px));
   margin: 0 auto;
-  padding-top: clamp(138px, 18.2vh, 176px);
+  padding-top: clamp(124px, 16vh, 164px);
   text-align: center;
 }
 
@@ -258,7 +258,7 @@ button {
   display: flex;
   justify-content: center;
   align-items: baseline;
-  margin-top: clamp(24px, 3.7vh, 38px);
+  margin-top: clamp(20px, 3vh, 34px);
   font-size: clamp(42px, 4.35vw, 68px);
   font-weight: 900;
   line-height: 1.08;
@@ -310,7 +310,7 @@ button {
 
 .hero-subtitle {
   max-width: 760px;
-  margin: clamp(16px, 2.2vh, 28px) auto 0;
+  margin: clamp(12px, 1.8vh, 24px) auto 0;
   color: var(--muted);
   font-size: clamp(17px, 1.35vw, 21px);
   font-weight: 500;
@@ -321,7 +321,7 @@ button {
   display: flex;
   justify-content: center;
   gap: 22px;
-  margin-top: clamp(22px, 3.1vh, 34px);
+  margin-top: clamp(18px, 2.5vh, 30px);
 }
 
 .glass-secondary-button {
@@ -364,9 +364,9 @@ button {
   grid-template-columns: minmax(250px, 1fr) minmax(250px, 1.05fr) 170px;
   gap: 28px;
   width: min(1080px, calc(100% - 80px));
-  height: clamp(260px, 31.5vh, 350px);
-  margin: clamp(28px, 4.8vh, 54px) auto 0;
-  padding: clamp(24px, 3vh, 36px) clamp(26px, 3vw, 42px);
+  height: clamp(304px, 34vh, 368px);
+  margin: clamp(18px, 2.6vh, 38px) auto clamp(18px, 2.4vh, 30px);
+  padding: clamp(28px, 3vh, 38px) clamp(26px, 3vw, 42px);
   border: 1px solid rgba(255, 255, 255, 0.78);
   border-radius: 34px;
   background:
@@ -505,7 +505,7 @@ button {
 }
 
 .radar-chart {
-  width: min(245px, 100%);
+  width: min(232px, 100%);
   overflow: visible;
 }
 
@@ -600,7 +600,7 @@ button {
 
 .decor-keyboard {
   left: -6.4vw;
-  bottom: -8.6vh;
+  bottom: -4.8vh;
   width: 388px;
   transform: rotate(11deg);
   opacity: 0.86;
@@ -754,11 +754,11 @@ button {
 }
 
 .decor-pen {
-  right: -3.2vw;
-  top: 46vh;
-  width: 285px;
-  height: 228px;
-  overflow: hidden;
+  right: -4.2vw;
+  top: 45vh;
+  width: 320px;
+  height: 330px;
+  overflow: visible;
   transform: rotate(-31deg);
   opacity: 0.88;
 }
@@ -769,7 +769,7 @@ button {
   height: 270px;
   margin: auto;
   border-radius: 13px;
-  transform: rotate(-31deg) translateY(28px);
+  transform: rotate(-31deg);
   background:
     linear-gradient(90deg, #66717c 0%, #e8edf1 14%, #ffffff 28%, #bdc7d0 48%, #f6f8fa 66%, #5f6a75 100%),
     linear-gradient(180deg, #f9fbfc, #9aa5b0);
@@ -931,7 +931,7 @@ button {
   }
 
   .hero-center {
-    padding-top: 118px;
+    padding-top: 96px;
   }
 
   .hero-badge {
@@ -940,23 +940,24 @@ button {
   }
 
   .brand-line {
-    margin-top: 22px;
-    font-size: clamp(31px, 3.05vw, 42px);
+    margin-top: 16px;
+    font-size: clamp(34px, 3.45vw, 48px);
   }
 
   .hero-title {
-    font-size: clamp(38px, 3.95vw, 54px);
+    margin-top: 6px;
+    font-size: clamp(36px, 3.65vw, 50px);
     line-height: 1.08;
   }
 
   .hero-subtitle {
-    margin-top: 12px;
-    font-size: 16px;
-    line-height: 1.62;
+    margin-top: 8px;
+    font-size: 15px;
+    line-height: 1.48;
   }
 
   .hero-actions {
-    margin-top: 18px;
+    margin-top: 12px;
   }
 
   .glass-secondary-button {
@@ -964,11 +965,10 @@ button {
   }
 
   .score-preview-card {
-    height: 218px;
-    margin-top: 22px;
-    padding: 17px 28px;
-    transform: scale(0.9);
-    transform-origin: top center;
+    height: 292px;
+    margin-top: 14px;
+    margin-bottom: 16px;
+    padding: 24px 30px;
   }
 
   .score-number span {
@@ -980,7 +980,7 @@ button {
   }
 
   .risk-pill {
-    margin-top: 7px;
+    margin-top: 8px;
     padding: 6px 15px;
   }
 
@@ -989,15 +989,15 @@ button {
   }
 
   .score-tip {
-    margin-top: 10px;
+    margin-top: 12px;
   }
 
   .radar-chart {
-    width: 200px;
+    width: 214px;
   }
 
   .action-card {
-    min-height: 45px;
+    min-height: 50px;
     font-size: 16px;
   }
 
@@ -1007,7 +1007,7 @@ button {
   }
 
   .decor-pen {
-    transform: rotate(-31deg) scale(0.74);
+    transform: rotate(-31deg) scale(0.78);
   }
 }
 
