@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { analyzeResumeInput, type AnalysisRequest } from "../../../lib/analysis";
 import { analyzeResumeWithLLM } from "../../../lib/llm-analysis";
-import { createLLMProvider } from "../../../lib/model-provider";
+import { createEmbeddingProvider, createLLMProvider } from "../../../lib/model-provider";
+import { createSemanticSignals } from "../../../lib/semantic-analysis";
 
 export const runtime = "nodejs";
 
@@ -23,14 +24,28 @@ export async function POST(request: Request) {
   }
 
   const normalizedPayload = normalizePayload(payload);
+  const semanticSignals = await tryCreateSemanticSignals(normalizedPayload);
 
   try {
     const provider = createLLMProvider();
-    const result = await analyzeResumeWithLLM(normalizedPayload, provider);
+    const result = await analyzeResumeWithLLM(normalizedPayload, provider, semanticSignals);
     return NextResponse.json(result);
   } catch (error) {
     console.error("llm analysis failed, falling back to rules", error);
-    return NextResponse.json(analyzeResumeInput(normalizedPayload));
+    const fallback = analyzeResumeInput(normalizedPayload);
+    return NextResponse.json({
+      ...fallback,
+      semanticMatch: semanticSignals
+    });
+  }
+}
+
+async function tryCreateSemanticSignals(payload: AnalysisRequest) {
+  try {
+    return await createSemanticSignals(payload, createEmbeddingProvider());
+  } catch (error) {
+    console.error("embedding analysis failed, continuing without semantic signals", error);
+    return undefined;
   }
 }
 

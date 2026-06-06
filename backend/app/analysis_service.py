@@ -44,9 +44,9 @@ def contains(text: str, keyword: str) -> bool:
 
 
 def level(score: int) -> str:
-    if score >= 82:
+    if score > 90:
         return "low"
-    if score >= 62:
+    if score >= 75:
         return "medium"
     return "high"
 
@@ -159,4 +159,3 @@ class AnalysisService:
                 interviewExplanation=f"这段经历虽然不是传统实习，但我承担了信息整理、问题分析和结果复盘工作。它对应到{title}岗位中，主要体现为快速理解业务目标、拆解任务并沉淀可执行建议的能力。",
             ),
         )
-

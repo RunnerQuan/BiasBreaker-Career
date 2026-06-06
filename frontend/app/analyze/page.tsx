@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import type { AnalysisResponse } from "../../lib/analysis";
+import { createHistoryRecord, saveHistoryRecord } from "../../lib/history";
 
 type ResumeMode = "upload" | "paste";
 
@@ -17,18 +18,19 @@ export default function AnalyzePage() {
   const [jobTitle, setJobTitle] = useState("");
   const [jdText, setJdText] = useState("");
   const [resumeText, setResumeText] = useState("");
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [mode, setMode] = useState<ResumeMode>("upload");
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
+  const [analysisPhase, setAnalysisPhase] = useState<"idle" | "parsing" | "analyzing">("idle");
   const [error, setError] = useState("");
 
   const score = result?.score ?? 68;
   const levelLabel = result ? levelText(result.level) : "中等风险";
-  const canAnalyze = jdText.trim().length > 0 && resumeText.trim().length > 0;
+  const canAnalyze = jdText.trim().length > 0 && (mode === "upload" ? Boolean(resumeFile) : resumeText.trim().length > 0);
 
   const jdCount = useMemo(() => jdText.length, [jdText]);
 
@@ -37,19 +39,27 @@ export default function AnalyzePage() {
     setError("");
 
     if (!canAnalyze) {
-      setError("请先填写岗位 JD，并粘贴简历文本或上传可解析的文本文件。");
+      setError("请先填写岗位 JD，并上传简历文件或粘贴简历文本。");
       return;
     }
 
     setIsLoading(true);
+    setAnalysisPhase(mode === "upload" ? "parsing" : "analyzing");
     try {
+      const finalResumeText = mode === "upload" ? await parseResumeFile(resumeFile) : resumeText.trim();
+      if (!finalResumeText.trim()) {
+        throw new Error("未能读取到简历文本，请重新上传文件或切换为粘贴文本。");
+      }
+      if (mode === "upload") setResumeText(finalResumeText);
+      setAnalysisPhase("analyzing");
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobTitle,
           jdText,
-          resumeText,
+          resumeText: finalResumeText,
           resumeFileName: fileName
         })
       });
@@ -57,11 +67,19 @@ export default function AnalyzePage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "分析失败，请稍后重试。");
       setResult(data);
+      saveHistoryRecord(
+        createHistoryRecord({
+          jobTitle,
+          resumeFileName: fileName,
+          result: data
+        })
+      );
       setIsResultOpen(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "分析失败，请稍后重试。");
     } finally {
       setIsLoading(false);
+      setAnalysisPhase("idle");
     }
   }
 
@@ -70,33 +88,31 @@ export default function AnalyzePage() {
     if (!file) return;
 
     setError("");
-    setIsParsing(true);
+    setResumeFile(file);
+    setResumeText("");
     setFileName(file.name);
     setFileSize(formatFileSize(file.size));
+  }
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+  async function parseResumeFile(file: File | null) {
+    if (!file) throw new Error("请先上传 PDF、DOCX、TXT 或 MD 格式的简历文件。");
 
-      const response = await fetch("/api/parse-resume", {
-        method: "POST",
-        body: formData
-      });
-      const data = await response.json();
+    const formData = new FormData();
+    formData.append("file", file);
 
-      if (!response.ok) {
-        throw new Error(data.message || "简历文件解析失败，请换一个文件或粘贴文本。");
-      }
+    const response = await fetch("/api/parse-resume", {
+      method: "POST",
+      body: formData
+    });
+    const data = await response.json();
 
-      setResumeText(data.text);
-      setFileName(data.fileName);
-      setFileSize(formatFileSize(data.fileSize));
-    } catch (caught) {
-      setResumeText("");
-      setError(caught instanceof Error ? caught.message : "简历文件解析失败，请换一个文件或粘贴文本。");
-    } finally {
-      setIsParsing(false);
+    if (!response.ok) {
+      throw new Error(data.message || "简历文件解析失败，请换一个文件或切换为粘贴文本。");
     }
+
+    setFileName(data.fileName);
+    setFileSize(formatFileSize(data.fileSize));
+    return String(data.text || "");
   }
 
   return (
@@ -156,8 +172,8 @@ export default function AnalyzePage() {
               <label className="upload-zone">
                 <input type="file" accept=".pdf,.docx,.txt,.md" onChange={handleFileChange} />
                 <UploadIcon />
-                <strong>{isParsing ? "正在解析简历文件..." : "点击上传或拖拽文件到此处"}</strong>
-                <span>支持 PDF / DOCX / TXT / MD，解析后将用于算法可读性检测</span>
+                <strong>{fileName ? "简历已选择，点击开始分析后自动解析" : "点击上传或拖拽文件到此处"}</strong>
+                <span>支持 PDF / DOCX / TXT / MD，点击开始分析后将自动解析并调用模型</span>
               </label>
             ) : (
               <textarea
@@ -176,8 +192,8 @@ export default function AnalyzePage() {
                   <small>{fileSize}</small>
                 </div>
                 <b />
-                <button type="button" onClick={() => setMode("upload")}>
-                  重新上传
+                <button type="button" onClick={() => { setResumeFile(null); setFileName(""); setFileSize(""); setResumeText(""); }}>
+                  移除文件
                 </button>
               </div>
             )}
@@ -231,9 +247,9 @@ export default function AnalyzePage() {
         {error && <p className="analysis-error">{error}</p>}
 
         <div className="analysis-actions">
-          <button type="submit" className="analysis-primary" disabled={isLoading || isParsing}>
+          <button type="submit" className="analysis-primary" disabled={isLoading}>
             <SparkleIcon />
-            <span>{isParsing ? "解析中..." : isLoading ? "分析中..." : "开始分析"}</span>
+            <span>{analysisPhase === "parsing" ? "解析中..." : analysisPhase === "analyzing" ? "分析中..." : "开始分析"}</span>
             <b>→</b>
           </button>
         </div>
@@ -244,7 +260,7 @@ export default function AnalyzePage() {
         你的数据仅用于分析，不用于模型训练或对外公开，保障隐私安全。
       </p>
 
-      {isLoading && <AnalyzingOverlay />}
+      {isLoading && <AnalyzingOverlay phase={analysisPhase} />}
       {result && isResultOpen && <AnalysisResultModal result={result} onClose={() => setIsResultOpen(false)} />}
     </main>
   );
@@ -303,8 +319,11 @@ function sourceText(source: "jd" | "resume" | "system") {
   return "系统判断";
 }
 
-function AnalyzingOverlay() {
-  const steps = ["解析岗位要求", "比对简历证据", "识别可读性风险", "生成改写与复核话术"];
+function AnalyzingOverlay({ phase }: { phase: "idle" | "parsing" | "analyzing" }) {
+  const steps =
+    phase === "parsing"
+      ? ["读取简历文件", "恢复文本结构", "清洗段落与项目符号", "准备模型分析"]
+      : ["解析岗位要求", "比对简历证据", "识别可读性风险", "生成改写与复核话术"];
 
   return (
     <div className="analysis-loading-overlay" role="status" aria-live="polite">
@@ -314,8 +333,8 @@ function AnalyzingOverlay() {
           <span />
           <span />
         </div>
-        <strong>系统正在分析</strong>
-        <p>正在调用模型理解 JD 与简历内容，请稍等片刻。</p>
+        <strong>{phase === "parsing" ? "正在解析简历" : "系统正在分析"}</strong>
+        <p>{phase === "parsing" ? "正在提取简历正文并整理结构，随后将自动进入模型分析。" : "正在调用模型理解 JD 与简历内容，请稍等片刻。"}</p>
         <div>
           {steps.map((step) => (
             <span key={step}>{step}</span>
@@ -350,8 +369,9 @@ function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; on
           <p>生成时间：{new Date(result.createdAt).toLocaleString("zh-CN")}</p>
         </div>
 
-        <div className="analysis-modal-grid">
-          <section className="analysis-modal-card">
+        <div className="analysis-report-layout">
+          <aside className="analysis-report-side">
+            <section className="analysis-modal-card">
             <h3>维度评分</h3>
             <div className="dimension-list">
               {result.dimensions.map((dimension) => (
@@ -367,8 +387,38 @@ function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; on
             </div>
           </section>
 
-          <section className="analysis-modal-card">
-            <h3>风险报告与证据引用</h3>
+            {result.semanticMatch && (
+              <section className="analysis-modal-card semantic-card">
+                <h3>语义匹配</h3>
+                <strong>{result.semanticMatch.score}</strong>
+                <p>{result.semanticMatch.summary}</p>
+                <ul>
+                  {result.semanticMatch.topEvidence.slice(0, 2).map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </aside>
+
+          <div className="analysis-report-main">
+            <section className="analysis-modal-card priority-card">
+              <h3>优先处理的问题</h3>
+              <div className="priority-list">
+                {result.findings.slice(0, 3).map((finding, index) => (
+                  <article key={`${finding.type}-priority-${index}`}>
+                    <span>{index + 1}</span>
+                    <div>
+                      <strong>{finding.type}</strong>
+                      <p>{finding.suggestion}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="analysis-modal-card">
+              <h3>风险报告与证据引用</h3>
             <div className="finding-list">
               {result.findings.map((finding, index) => (
                 <article key={`${finding.type}-${index}`}>
@@ -384,8 +434,8 @@ function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; on
             </div>
           </section>
 
-          <section className="analysis-modal-card">
-            <h3>改写建议</h3>
+            <section className="analysis-modal-card">
+              <h3>改写建议</h3>
             <div className="suggestion-list">
               {result.suggestions.map((suggestion) => (
                 <article key={suggestion.title}>
@@ -397,8 +447,8 @@ function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; on
             </div>
           </section>
 
-          <section className="analysis-modal-card">
-            <h3>复核话术与面试解释</h3>
+            <section className="analysis-modal-card">
+              <h3>复核话术与面试解释</h3>
             <div className="script-list">
               <article>
                 <strong>人工复核话术</strong>
@@ -410,6 +460,7 @@ function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; on
               </article>
             </div>
           </section>
+          </div>
         </div>
       </section>
     </div>

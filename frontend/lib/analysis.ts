@@ -33,6 +33,11 @@ export type AnalysisResponse = {
   analysisId: string;
   createdAt: string;
   providerMode: "rules" | "llm";
+  semanticMatch?: {
+    score: number;
+    summary: string;
+    topEvidence: string[];
+  };
   score: number;
   level: RiskLevel;
   summary: string;
@@ -89,9 +94,13 @@ function pickEvidence(text: string, terms: string[]) {
 }
 
 function riskLevel(score: number): RiskLevel {
-  if (score >= 82) return "low";
-  if (score >= 62) return "medium";
+  if (score > 90) return "low";
+  if (score >= 75) return "medium";
   return "high";
+}
+
+export function riskLevelFromScore(score: number): RiskLevel {
+  return riskLevel(score);
 }
 
 export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
@@ -231,4 +240,3 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
     }
   };
 }
-
