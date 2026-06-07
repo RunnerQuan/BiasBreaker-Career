@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { AppNav } from "../../components/AppNav";
+import { DimensionRadar } from "../../components/DimensionRadar";
 import type { AnalysisResponse, RiskLevel } from "../../lib/analysis";
 import {
   buildReportMarkdown,
@@ -25,6 +27,7 @@ export default function HistoryPage() {
   const [sort, setSort] = useState<SortType>("timeDesc");
   const [page, setPage] = useState(1);
   const [activeRecord, setActiveRecord] = useState<HistoryRecord | null>(null);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
 
   useEffect(() => {
     setRecords(readHistoryRecords());
@@ -73,6 +76,16 @@ export default function HistoryPage() {
     if (activeRecord && ids.includes(activeRecord.id)) setActiveRecord(null);
   }
 
+  function requestDelete(ids: string[]) {
+    if (!ids.length) return;
+    setPendingDeleteIds(ids);
+  }
+
+  function confirmDelete() {
+    handleDelete(pendingDeleteIds);
+    setPendingDeleteIds([]);
+  }
+
   function toggleSelected(id: string) {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
@@ -87,7 +100,7 @@ export default function HistoryPage() {
   return (
     <main className="history-page">
       <HistoryDecor />
-      <HistoryNav />
+      <AppNav active="history" />
 
       <section className="history-hero">
         <h1>查看你的历史分析记录</h1>
@@ -101,7 +114,7 @@ export default function HistoryPage() {
               <SearchIcon />
               <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="搜索姓名、岗位名称" />
             </label>
-            <button className="history-batch-delete" type="button" onClick={() => handleDelete(selectedIds)} disabled={!selectedIds.length}>
+            <button className="history-batch-delete" type="button" onClick={() => requestDelete(selectedIds)} disabled={!selectedIds.length}>
               <TrashIcon />
               批量删除
             </button>
@@ -160,7 +173,7 @@ export default function HistoryPage() {
                     <button type="button" aria-label="下载报告" onClick={() => downloadRecord(record)}>
                       <DownloadIcon />
                     </button>
-                    <button type="button" onClick={() => handleDelete([record.id])}>
+                    <button type="button" onClick={() => requestDelete([record.id])}>
                       <TrashIcon />
                       删除
                     </button>
@@ -215,12 +228,29 @@ export default function HistoryPage() {
       </section>
 
       {activeRecord && <HistoryReportModal record={activeRecord} onClose={() => setActiveRecord(null)} />}
+      {pendingDeleteIds.length > 0 && (
+        <ConfirmDeleteDialog
+          count={pendingDeleteIds.length}
+          onCancel={() => setPendingDeleteIds([])}
+          onConfirm={confirmDelete}
+        />
+      )}
     </main>
   );
 }
 
 function HistoryReportModal({ record, onClose }: { record: HistoryRecord; onClose: () => void }) {
   const result = record.result;
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
     <div className="analysis-modal-backdrop" role="presentation" onClick={onClose}>
       <section className="analysis-modal" role="dialog" aria-modal="true" aria-labelledby="history-report-title" onClick={(event) => event.stopPropagation()}>
@@ -244,15 +274,17 @@ function HistoryReportModal({ record, onClose }: { record: HistoryRecord; onClos
           <aside className="analysis-report-side">
             <section className="analysis-modal-card">
               <h3>维度评分</h3>
+              <DimensionRadar dimensions={result.dimensions} />
+              <p className="dimension-help">系统可读性（ATS）衡量招聘系统能否顺利读取简历文本、栏目结构和关键信息。</p>
               <div className="dimension-list">
                 {result.dimensions.map((dimension) => (
                   <article key={dimension.key}>
                     <div>
-                      <strong>{dimension.label}</strong>
+                      <strong>{dimensionLabel(dimension.label)}</strong>
                       <span>{dimension.score}</span>
                     </div>
                     <i style={{ "--value": dimension.score } as React.CSSProperties} />
-                    <p>{dimension.summary}</p>
+                    <p>{dimensionSummary(dimension)}</p>
                   </article>
                 ))}
               </div>
@@ -273,6 +305,46 @@ function HistoryReportModal({ record, onClose }: { record: HistoryRecord; onClos
       </section>
     </div>
   );
+}
+
+function ConfirmDeleteDialog({ count, onCancel, onConfirm }: { count: number; onCancel: () => void; onConfirm: () => void }) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onCancel();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div className="analysis-modal-backdrop confirm-backdrop" role="presentation" onClick={onCancel}>
+      <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-delete-title" onClick={(event) => event.stopPropagation()}>
+        <span className="confirm-icon">
+          <TrashIcon />
+        </span>
+        <h2 id="confirm-delete-title">确认删除历史记录？</h2>
+        <p>将删除选中的 {count} 条分析记录。删除后无法恢复，但不会影响你本地的原始简历文件。</p>
+        <div>
+          <button type="button" onClick={onCancel}>
+            取消
+          </button>
+          <button type="button" onClick={onConfirm}>
+            确认删除
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function dimensionLabel(label: string) {
+  return label === "ATS 可读性" ? "系统可读性（ATS）" : label;
+}
+
+function dimensionSummary(dimension: AnalysisResponse["dimensions"][number]) {
+  if (dimension.key !== "atsReadability") return dimension.summary;
+  return `${dimension.summary}。ATS 指招聘系统自动读取简历的能力，重点看格式、文本可复制性和栏目是否容易被系统识别。`;
 }
 
 function ModalCard({ title, result, mode }: { title: string; result: AnalysisResponse; mode: "findings" | "suggestions" }) {
@@ -327,21 +399,6 @@ function downloadRecord(record: HistoryRecord) {
   URL.revokeObjectURL(url);
 }
 
-function HistoryNav() {
-  return (
-    <header className="analyze-nav">
-      <Link href="/" className="analyze-brand"><ShieldIcon /><span>BiasBreaker Career</span></Link>
-      <nav aria-label="主导航">
-        <Link href="/#intro">产品介绍</Link>
-        <Link href="/#flow">使用流程</Link>
-        <Link href="/analyze">简历分析</Link>
-        <Link href="/history" className="active">历史记录</Link>
-      </nav>
-      <Link href="/analyze" className="analyze-nav-cta"><SparkleIcon />开始分析</Link>
-    </header>
-  );
-}
-
 function HistoryDecor() {
   return (
     <div className="history-decor" aria-hidden="true">
@@ -354,17 +411,6 @@ function HistoryDecor() {
   );
 }
 
-function ShieldIcon() {
-  return (
-    <svg width="32" height="36" viewBox="0 0 28 32" fill="none" aria-hidden="true">
-      <path d="M14 1.7c4.3 2.8 8.1 3.6 11.6 3.4.1 10.7-3.7 18.5-11.6 24.8C6.1 23.6 2.3 15.8 2.4 5.1 5.9 5.3 9.7 4.5 14 1.7Z" fill="url(#historyShield)" />
-      <path d="m14 9.2 1.55 3.15 3.48.5-2.52 2.45.6 3.46L14 17.13l-3.11 1.63.6-3.46-2.52-2.45 3.48-.5L14 9.2Z" fill="white" />
-      <defs><linearGradient id="historyShield" x1="5" y1="3" x2="24" y2="28"><stop stopColor="#ffb39d" /><stop offset=".55" stopColor="#ff767a" /><stop offset="1" stopColor="#e85574" /></linearGradient></defs>
-    </svg>
-  );
-}
-
-function SparkleIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.8c.8 4 2.5 5.7 6.5 6.5-4 .8-5.7 2.5-6.5 6.5-.8-4-2.5-5.7-6.5-6.5 4-.8 5.7-2.5 6.5-6.5Z" fill="currentColor" /></svg>; }
 function SearchIcon() { return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>; }
 function TrashIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>; }
 function DownloadIcon() { return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>; }

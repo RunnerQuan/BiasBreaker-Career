@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { AppNav } from "../../components/AppNav";
+import { DimensionRadar } from "../../components/DimensionRadar";
 import type { AnalysisResponse } from "../../lib/analysis";
 import { createHistoryRecord, saveHistoryRecord } from "../../lib/history";
 
@@ -27,6 +28,7 @@ export default function AnalyzePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [analysisPhase, setAnalysisPhase] = useState<"idle" | "parsing" | "analyzing">("idle");
   const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const score = result?.score ?? 68;
   const levelLabel = result ? levelText(result.level) : "中等风险";
@@ -92,6 +94,15 @@ export default function AnalyzePage() {
     setResumeText("");
     setFileName(file.name);
     setFileSize(formatFileSize(file.size));
+    event.currentTarget.value = "";
+  }
+
+  function handleRemoveFile() {
+    setResumeFile(null);
+    setFileName("");
+    setFileSize("");
+    setResumeText("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function parseResumeFile(file: File | null) {
@@ -118,7 +129,7 @@ export default function AnalyzePage() {
   return (
     <main className="analyze-page">
       <AnalyzeDecor />
-      <AnalyzeNav />
+      <AppNav active="analyze" />
 
       <section className="analyze-hero" aria-labelledby="analyze-title">
         <h1 id="analyze-title">输入岗位 JD 与简历，开始算法可读性检测</h1>
@@ -170,7 +181,7 @@ export default function AnalyzePage() {
 
             {mode === "upload" ? (
               <label className="upload-zone">
-                <input type="file" accept=".pdf,.docx,.txt,.md" onChange={handleFileChange} />
+                <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt,.md" onChange={handleFileChange} />
                 <UploadIcon />
                 <strong>{fileName ? "简历已选择，点击开始分析后自动解析" : "点击上传或拖拽文件到此处"}</strong>
                 <span>支持 PDF / DOCX / TXT / MD，点击开始分析后将自动解析并调用模型</span>
@@ -192,7 +203,7 @@ export default function AnalyzePage() {
                   <small>{fileSize}</small>
                 </div>
                 <b />
-                <button type="button" onClick={() => { setResumeFile(null); setFileName(""); setFileSize(""); setResumeText(""); }}>
+                <button type="button" onClick={handleRemoveFile}>
                   移除文件
                 </button>
               </div>
@@ -266,29 +277,6 @@ export default function AnalyzePage() {
   );
 }
 
-function AnalyzeNav() {
-  return (
-    <header className="analyze-nav">
-      <Link href="/" className="analyze-brand">
-        <ShieldIcon />
-        <span>BiasBreaker Career</span>
-      </Link>
-      <nav aria-label="主导航">
-        <Link href="/#intro">产品介绍</Link>
-        <Link href="/#flow">使用流程</Link>
-        <Link href="/analyze" className="active">
-          简历分析
-        </Link>
-        <Link href="/history">历史记录</Link>
-      </nav>
-      <Link href="/analyze" className="analyze-nav-cta">
-        <SparkleIcon />
-        开始分析
-      </Link>
-    </header>
-  );
-}
-
 function AnalyzeDecor() {
   return (
     <div className="analyze-decor" aria-hidden="true">
@@ -319,6 +307,15 @@ function sourceText(source: "jd" | "resume" | "system") {
   return "系统判断";
 }
 
+function dimensionLabel(label: string) {
+  return label === "ATS 可读性" ? "系统可读性（ATS）" : label;
+}
+
+function dimensionSummary(dimension: AnalysisResponse["dimensions"][number]) {
+  if (dimension.key !== "atsReadability") return dimension.summary;
+  return `${dimension.summary}。ATS 指招聘系统自动读取简历的能力，重点看格式、文本可复制性和栏目是否容易被系统识别。`;
+}
+
 function AnalyzingOverlay({ phase }: { phase: "idle" | "parsing" | "analyzing" }) {
   const steps =
     phase === "parsing"
@@ -346,6 +343,15 @@ function AnalyzingOverlay({ phase }: { phase: "idle" | "parsing" | "analyzing" }
 }
 
 function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; onClose: () => void }) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
     <div className="analysis-modal-backdrop" role="presentation" onClick={onClose}>
       <section className="analysis-modal" role="dialog" aria-modal="true" aria-labelledby="analysis-result-title" onClick={(event) => event.stopPropagation()}>
@@ -372,20 +378,22 @@ function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; on
         <div className="analysis-report-layout">
           <aside className="analysis-report-side">
             <section className="analysis-modal-card">
-            <h3>维度评分</h3>
-            <div className="dimension-list">
-              {result.dimensions.map((dimension) => (
-                <article key={dimension.key}>
-                  <div>
-                    <strong>{dimension.label}</strong>
-                    <span>{dimension.score}</span>
-                  </div>
-                  <i style={{ "--value": dimension.score } as React.CSSProperties} />
-                  <p>{dimension.summary}</p>
-                </article>
-              ))}
-            </div>
-          </section>
+              <h3>维度评分</h3>
+              <DimensionRadar dimensions={result.dimensions} />
+              <p className="dimension-help">系统可读性（ATS）衡量招聘系统能否顺利读取简历文本、栏目结构和关键信息。</p>
+              <div className="dimension-list">
+                {result.dimensions.map((dimension) => (
+                  <article key={dimension.key}>
+                    <div>
+                      <strong>{dimensionLabel(dimension.label)}</strong>
+                      <span>{dimension.score}</span>
+                    </div>
+                    <i style={{ "--value": dimension.score } as React.CSSProperties} />
+                    <p>{dimensionSummary(dimension)}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
 
             {result.semanticMatch && (
               <section className="analysis-modal-card semantic-card">
@@ -464,22 +472,6 @@ function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; on
         </div>
       </section>
     </div>
-  );
-}
-
-function ShieldIcon() {
-  return (
-    <svg width="32" height="36" viewBox="0 0 28 32" fill="none" aria-hidden="true">
-      <path d="M14 1.7c4.3 2.8 8.1 3.6 11.6 3.4.1 10.7-3.7 18.5-11.6 24.8C6.1 23.6 2.3 15.8 2.4 5.1 5.9 5.3 9.7 4.5 14 1.7Z" fill="url(#analyzeShield)" />
-      <path d="m14 9.2 1.55 3.15 3.48.5-2.52 2.45.6 3.46L14 17.13l-3.11 1.63.6-3.46-2.52-2.45 3.48-.5L14 9.2Z" fill="white" />
-      <defs>
-        <linearGradient id="analyzeShield" x1="5" y1="3" x2="24" y2="28" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#ffb39d" />
-          <stop offset=".55" stopColor="#ff767a" />
-          <stop offset="1" stopColor="#e85574" />
-        </linearGradient>
-      </defs>
-    </svg>
   );
 }
 

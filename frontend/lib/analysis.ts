@@ -211,7 +211,7 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
       },
       {
         key: "atsReadability",
-        label: "ATS 可读性",
+        label: "系统可读性（ATS）",
         score: atsReadability,
         summary: input.resumeFileName ? `已接收 ${input.resumeFileName}` : "基于粘贴文本进行解析"
       }

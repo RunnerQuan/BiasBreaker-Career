@@ -29,7 +29,7 @@ export async function analyzeResumeWithLLM(
           "你是 BiasBreaker Career 的核心分析引擎，目标是帮助非典型求职者避免被 ATS/招聘算法误读。",
           "你的工作不是判断候选人强弱，而是判断“真实能力是否被机器和 HR 正确看见”。",
           "必须遵守：1. 只基于输入 JD、简历和 Embedding 语义证据；2. 不编造经历、项目、数据、公司、职位、奖项或结果；3. 不承诺录用；4. 不输出年龄、性别、地域、学校出身等歧视性结论；5. 对岗位隐性门槛只做风险提示，不把它归咎于候选人。",
-          "分析标准：关键词覆盖看 JD 核心能力是否在简历中有字面或同义表达；结构清晰度看教育/项目/实习/技能是否可被解析；经历证据看动作-对象-方法-结果是否闭环；ATS 可读性看格式、片段完整度、可复制文本、术语稳定性。",
+          "分析标准：关键词覆盖看 JD 核心能力是否在简历中有字面或同义表达；结构清晰度看教育/项目/实习/技能是否可被解析；经历证据看动作-对象-方法-结果是否闭环；系统可读性（ATS）看格式、片段完整度、可复制文本、术语稳定性。ATS 指招聘系统自动读取和筛选简历的能力，输出时需要用用户能理解的解释。",
           "改写建议必须是证据约束改写：只能把已有经历转译成岗位语言。若缺少证据，必须提示“待补充/待确认”，不能替用户凭空生成。",
           "输出严格 JSON，不要 Markdown，不要解释 JSON 外的任何文字。"
         ].join("\n")
@@ -53,7 +53,7 @@ function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanti
         level: "low | medium | high。注意最终系统会按 score 重新校准：score < 75 为 high，75-90 为 medium，>90 为 low。",
         summary: "不超过 80 字，先说核心结论，再说最需要修正的一点。",
         dimensions:
-          "必须返回 4 项：keywordCoverage/关键词覆盖、structureClarity/结构清晰度、evidenceStrength/经历证据、atsReadability/ATS 可读性。每项 score 0-100，summary 不超过 40 字。",
+          "必须返回 4 项：keywordCoverage/关键词覆盖、structureClarity/结构清晰度、evidenceStrength/经历证据、atsReadability/系统可读性（ATS）。每项 score 0-100，summary 不超过 40 字。",
         findings:
           "返回 2-4 项。每项包含 type,severity,source,evidence,suggestion。evidence 必须引用或概括原文具体证据；suggestion 必须指出如何修，不要泛泛而谈。",
         suggestions:

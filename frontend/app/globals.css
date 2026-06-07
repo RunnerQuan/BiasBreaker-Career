@@ -168,6 +168,33 @@ button {
   color: #ef6f69;
 }
 
+.nav-links a.active {
+  position: relative;
+  color: #ff565f;
+}
+
+.nav-links a.active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  width: 68px;
+  height: 3px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #ff565f;
+  box-shadow: 0 8px 14px rgba(255, 86, 95, 0.22);
+}
+
+.page-nav.glass-nav {
+  position: relative;
+  top: auto;
+  left: 50%;
+  width: min(1260px, calc(100vw - 48px));
+  margin: 0;
+  transform: translateX(-50%);
+}
+
 .nav-button,
 .liquid-button {
   position: relative;
@@ -2253,6 +2280,10 @@ button {
     padding: 0 14px;
   }
 
+  .page-nav.glass-nav {
+    width: calc(100vw - 28px);
+  }
+
   .nav-links,
   .nav-button {
     display: none;
@@ -2491,10 +2522,12 @@ button {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 28px;
-  width: min(1180px, 100%);
+  width: min(1260px, calc(100vw - 48px));
   height: 72px;
-  margin: 0 auto;
-  padding: 0 24px;
+  left: 50%;
+  margin: 0;
+  padding: 0 22px 0 24px;
+  transform: translateX(-50%);
   border: 1px solid rgba(255, 255, 255, 0.76);
   border-radius: 999px;
   background:
@@ -2503,6 +2536,7 @@ button {
     radial-gradient(circle at 86% 10%, rgba(85, 200, 207, 0.16), transparent 34%);
   box-shadow:
     0 24px 70px rgba(42, 54, 74, 0.14),
+    0 0 0 1px rgba(197, 215, 229, 0.34),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(26px) saturate(1.38);
   -webkit-backdrop-filter: blur(26px) saturate(1.38);
@@ -2518,10 +2552,10 @@ button {
 .analyze-brand {
   display: inline-flex;
   align-items: center;
-  gap: 13px;
+  gap: 12px;
   color: var(--ink);
   font-family: Georgia, "Times New Roman", var(--font-brand);
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 800;
   text-decoration: none;
 }
@@ -2562,11 +2596,11 @@ button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-width: 146px;
-  height: 48px;
+  min-width: 152px;
+  height: 52px;
   border-radius: 999px;
   color: #fff;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 800;
   text-decoration: none;
   background:
@@ -3387,6 +3421,46 @@ button {
   gap: 12px;
 }
 
+.report-radar-card {
+  display: grid;
+  place-items: center;
+  margin: 2px 0 14px;
+  padding: 12px 6px 4px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(85, 200, 207, 0.12), transparent 52%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.36));
+}
+
+.report-radar-card svg {
+  width: min(100%, 260px);
+  height: auto;
+  overflow: visible;
+}
+
+.report-radar-label {
+  fill: #71809a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.report-radar-value {
+  fill: var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.dimension-help {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  color: #536782;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.65;
+  background: rgba(85, 200, 207, 0.08);
+}
+
 .dimension-list article,
 .finding-list article,
 .suggestion-list article,
@@ -3573,6 +3647,79 @@ button {
   font-size: 13px;
   line-height: 1.55;
   background: rgba(85, 200, 207, 0.08);
+}
+
+.confirm-backdrop {
+  z-index: 130;
+}
+
+.confirm-dialog {
+  width: min(430px, calc(100vw - 36px));
+  padding: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 26px;
+  text-align: center;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.68)),
+    radial-gradient(circle at 8% 0, rgba(255, 83, 92, 0.12), transparent 34%),
+    radial-gradient(circle at 92% 100%, rgba(85, 200, 207, 0.12), transparent 38%);
+  box-shadow:
+    0 30px 80px rgba(35, 48, 68, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(28px) saturate(1.25);
+  -webkit-backdrop-filter: blur(28px) saturate(1.25);
+}
+
+.confirm-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 16px;
+  border-radius: 20px;
+  color: #ff535c;
+  background: rgba(255, 83, 92, 0.1);
+}
+
+.confirm-dialog h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.confirm-dialog p {
+  margin: 12px 0 22px;
+  color: #61708a;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.7;
+}
+
+.confirm-dialog div {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.confirm-dialog button {
+  min-width: 118px;
+  height: 42px;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.confirm-dialog button:first-child {
+  border: 1px solid rgba(185, 198, 216, 0.62);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.confirm-dialog button:last-child {
+  border: 0;
+  color: #fff;
+  background: linear-gradient(135deg, #ff8b7f, #ff5665);
+  box-shadow: 0 14px 28px rgba(255, 83, 92, 0.22);
 }
 
 .analyze-decor {
@@ -4216,7 +4363,25 @@ button {
   }
 
   .analyze-nav {
-    height: 62px;
+    height: 60px;
+  }
+
+  .analyze-brand {
+    font-size: 18px;
+  }
+
+  .analyze-brand svg {
+    width: 38px;
+    height: 38px;
+  }
+
+  .analyze-nav nav {
+    gap: 46px;
+    font-size: 16px;
+  }
+
+  .analyze-nav-cta {
+    height: 46px;
   }
 
   .analyze-hero {
@@ -4259,6 +4424,9 @@ button {
   .analyze-nav {
     grid-template-columns: 1fr auto;
     width: 100%;
+    left: auto;
+    margin: 0 auto;
+    transform: none;
   }
 
   .analyze-nav nav {
