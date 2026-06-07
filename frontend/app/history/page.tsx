@@ -161,7 +161,7 @@ export default function HistoryPage() {
                     <span className={`history-avatar avatar-${index % 4}`}>{record.candidateName.slice(0, 1)}</span>
                     <strong>{record.candidateName}</strong>
                   </div>
-                  <span className="history-job">{record.targetJob}</span>
+                  <span className="history-job" title={record.targetJob}>{record.targetJob}</span>
                   <span className={`history-score score-${record.result.level}`}>
                     {record.result.score}
                     <small>/100</small>

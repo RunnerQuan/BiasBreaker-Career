@@ -11,3 +11,5 @@ coverage/
 *.env
 *.env.*
 *__pycache__/
+.workbuddy/
+.codebuddy/

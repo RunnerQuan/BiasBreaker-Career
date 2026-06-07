@@ -3178,24 +3178,20 @@ button {
   place-items: center;
   padding: 28px;
   background:
-    radial-gradient(circle at 50% 36%, rgba(85, 200, 207, 0.18), transparent 34%),
-    rgba(248, 252, 252, 0.54);
-  backdrop-filter: blur(18px) saturate(1.15);
-  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+    radial-gradient(circle at 50% 36%, rgba(85, 200, 207, 0.12), transparent 34%),
+    #f8fbfc;
 }
 
 .analysis-loading-card,
 .analysis-modal {
   border: 1px solid rgba(255, 255, 255, 0.8);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.62)),
+    linear-gradient(135deg, #ffffff, #f8f9fa),
     radial-gradient(circle at 8% 8%, rgba(255, 132, 122, 0.12), transparent 30%),
     radial-gradient(circle at 94% 92%, rgba(85, 200, 207, 0.16), transparent 36%);
   box-shadow:
     0 34px 90px rgba(20, 36, 59, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(28px) saturate(1.25);
-  -webkit-backdrop-filter: blur(28px) saturate(1.25);
 }
 
 .analysis-loading-card {
@@ -3440,13 +3436,13 @@ button {
 
 .report-radar-label {
   fill: #71809a;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .report-radar-value {
   fill: var(--ink);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
 }
 
