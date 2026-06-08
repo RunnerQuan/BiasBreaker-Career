@@ -3,12 +3,11 @@
 import Link from "next/link";
 
 type AppNavProps = {
-  active?: "intro" | "flow" | "analyze" | "history";
+  active?: "home" | "analyze" | "history";
 };
 
 const navItems = [
-  { key: "intro", label: "产品介绍", href: "/#intro" },
-  { key: "flow", label: "使用流程", href: "/#flow" },
+  { key: "home", label: "首页", href: "/" },
   { key: "analyze", label: "简历分析", href: "/analyze" },
   { key: "history", label: "历史记录", href: "/history" }
 ] as const;
