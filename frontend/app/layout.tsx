@@ -12,6 +12,7 @@ import "@fontsource/noto-sans-sc/500.css";
 import "@fontsource/noto-sans-sc/700.css";
 import "@fontsource/noto-sans-sc/900.css";
 import "./globals.css";
+import "./loading-effects.css";
 
 export const metadata: Metadata = {
   title: "BiasBreaker Career 破偏求职",
