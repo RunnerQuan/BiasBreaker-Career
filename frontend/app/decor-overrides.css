@@ -76,16 +76,26 @@
   content: "✓";
 }
 
+/*
+ * The legacy analyze modal renders the explanation text as a direct text node.
+ * A two-column grid therefore places that anonymous text node into the narrow icon
+ * column. Use normal block flow with an absolutely positioned icon instead.
+ */
 .analyze-page .rewrite-risk-box,
 .analyze-page .rewrite-reason-box {
-  display: grid !important;
-  grid-template-columns: 34px 1fr;
-  gap: 10px;
-  align-items: start;
+  position: relative;
+  display: block !important;
+  min-width: 0;
+  padding-left: 58px !important;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 .analyze-page .rewrite-risk-box::before,
 .analyze-page .rewrite-reason-box::before {
+  position: absolute;
+  left: 14px;
+  top: 12px;
   display: grid;
   place-items: center;
   width: 30px;
@@ -95,6 +105,13 @@
   font-weight: 900;
   line-height: 1;
   background: rgba(255, 255, 255, 0.78);
+}
+
+.analyze-page .rewrite-risk-box strong,
+.analyze-page .rewrite-reason-box strong {
+  display: inline !important;
+  margin: 0 8px 0 0 !important;
+  white-space: nowrap;
 }
 
 .analyze-page .rewrite-risk-box::before {
