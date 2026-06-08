@@ -9,6 +9,13 @@
   text-rendering: optimizeLegibility;
 }
 
+/* Analyze and history use the same note text size. */
+.analyze-page .analyze-sticky,
+.history-page .history-sticky {
+  font-size: clamp(18px, 1.25vw, 22px) !important;
+  line-height: 1.5 !important;
+}
+
 /* Match the analyze/history right-side desk objects to the home hero composition. */
 .analyze-page .analyze-pen,
 .history-page .analyze-pen {
@@ -34,14 +41,15 @@
   filter: drop-shadow(0 16px 20px rgba(32, 56, 78, 0.1));
 }
 
-/* Keep the upper-left notes visually consistent and away from the main cards. */
+/* Keep both note components in the lower-left corner with identical positioning. */
 .analyze-page .analyze-sticky,
 .history-page .history-sticky {
-  left: clamp(26px, 4.5vw, 76px) !important;
+  left: clamp(30px, 4.5vw, 76px) !important;
   right: auto !important;
-  top: clamp(112px, 15vh, 154px) !important;
-  bottom: auto !important;
+  top: auto !important;
+  bottom: clamp(52px, 8vh, 96px) !important;
   transform: rotate(-7deg) !important;
+  transform-origin: center;
 }
 
 @media (max-width: 1180px) {
@@ -63,7 +71,9 @@
   .analyze-page .analyze-sticky,
   .history-page .history-sticky {
     left: 18px !important;
+    bottom: 42px !important;
     opacity: 0.56;
+    font-size: 18px !important;
     transform: rotate(-7deg) scale(0.88) !important;
   }
 }
