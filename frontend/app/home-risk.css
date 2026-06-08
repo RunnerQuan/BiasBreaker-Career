@@ -1,0 +1,14 @@
+.snap-home .risk-pill[data-risk="high"] {
+  color: #ff535c !important;
+  background: rgba(255, 83, 92, 0.12) !important;
+}
+
+.snap-home .risk-pill[data-risk="medium"] {
+  color: #ff7600 !important;
+  background: #fff0d6 !important;
+}
+
+.snap-home .risk-pill[data-risk="low"] {
+  color: #0ca66f !important;
+  background: rgba(53, 199, 119, 0.12) !important;
+}
