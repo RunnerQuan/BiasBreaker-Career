@@ -98,12 +98,12 @@ export function HomeCaseShowcase() {
                 <div><strong>原始表达</strong><p>{item.original}</p></div>
               </div>
 
-              <div className="case-risk-block">
-                <i aria-hidden="true">!</i>
-                <div>
+              <div className="case-misread-flow" aria-label="系统可能误读">
+                <div className="case-arrow" aria-hidden="true">↓</div>
+                <div className="case-misread-copy">
                   <strong>系统可能误读</strong>
-                  <div className="case-risk-tags">{item.risks.map((risk) => <span key={risk}>{risk}</span>)}</div>
                   <p>{item.riskText}</p>
+                  <div className="case-risk-tags">{item.risks.map((risk) => <span key={risk}>{risk}</span>)}</div>
                 </div>
               </div>
 
