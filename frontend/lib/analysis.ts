@@ -62,6 +62,11 @@ export type AnalysisResponse = {
   };
 };
 
+type AtsReadabilityResult = {
+  score: number;
+  summary: string;
+};
+
 function pickEvidence(text: string, terms: string[]) {
   const lines = text
     .split(/\n|。|；|;/)
@@ -99,12 +104,8 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
       Math.min(resumeText.split(/\n/).filter(Boolean).length, 10) * 2
   );
   const evidenceStrength = evidence.score;
-  const atsReadability = clamp(
-    82 -
-      (input.resumeFileName && !/\.(txt|md)$/i.test(input.resumeFileName) ? 8 : 0) -
-      (resumeText.length < 160 ? 18 : 0) +
-      (structureClarity >= 75 ? 4 : 0)
-  );
+  const atsReadabilityResult = scoreAtsReadability(resumeText, input.resumeFileName, structureClarity);
+  const atsReadability = atsReadabilityResult.score;
 
   const score = clamp(keywordCoverage * 0.34 + structureClarity * 0.2 + evidenceStrength * 0.32 + atsReadability * 0.14);
   const level = riskLevel(score);
@@ -199,7 +200,7 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
         key: "atsReadability",
         label: "系统可读性（ATS）",
         score: atsReadability,
-        summary: input.resumeFileName ? `已接收 ${input.resumeFileName}` : "基于粘贴文本进行解析"
+        summary: atsReadabilityResult.summary
       }
     ],
     findings,
@@ -225,4 +226,82 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
       interviewExplanation: `这段经历虽然不是传统实习，但我承担了信息整理、问题分析和结果复盘工作。它对应到${targetTitle}岗位中，主要体现为快速理解业务目标、拆解任务、使用合适工具处理信息并沉淀可执行建议的能力。`
     }
   };
+}
+
+function scoreAtsReadability(resumeText: string, resumeFileName: string | undefined, structureClarity: number): AtsReadabilityResult {
+  const fileName = resumeFileName || "";
+  const hasFile = Boolean(fileName);
+  const isPlainTextFile = /\.(txt|md)$/i.test(fileName);
+  const isParsedDocument = /\.(pdf|docx)$/i.test(fileName);
+  const textLength = resumeText.trim().length;
+  const readableRatio = readableTextRatio(resumeText);
+  const hasEnoughText = textLength >= 300;
+  const hasRichText = textLength >= 800;
+  const hasRichStructure = structureClarity >= 80;
+  const hasExcellentStructure = structureClarity >= 92;
+  const hasReadableChars = readableRatio >= 0.65;
+  const hasVeryReadableChars = readableRatio >= 0.78;
+  const hasLikelyGarbledText = textLength > 0 && readableRatio < 0.45;
+
+  let score = 68;
+  const reasons: string[] = [];
+
+  if (!hasFile) {
+    score += 8;
+    reasons.push("基于粘贴文本分析");
+  } else if (isPlainTextFile) {
+    score += 14;
+    reasons.push(`已接收 ${fileName}，纯文本格式便于系统读取`);
+  } else if (isParsedDocument) {
+    score += hasEnoughText ? 12 : 4;
+    reasons.push(`已成功解析 ${fileName}`);
+  } else {
+    score += 2;
+    reasons.push(`已接收 ${fileName}，该格式存在一定解析不确定性`);
+  }
+
+  if (hasRichStructure) {
+    score += hasExcellentStructure ? 10 : 7;
+    reasons.push("栏目结构清晰");
+  } else if (structureClarity < 60) {
+    score -= 10;
+    reasons.push("栏目结构信号不足");
+  }
+
+  if (hasRichText) {
+    score += 8;
+    reasons.push("可提取文本较充分");
+  } else if (hasEnoughText) {
+    score += 5;
+    reasons.push("可提取文本长度正常");
+  } else if (textLength < 160) {
+    score -= 18;
+    reasons.push("可提取文本过短，可能存在扫描件或解析缺失");
+  } else {
+    score -= 6;
+    reasons.push("可提取文本偏短");
+  }
+
+  if (hasVeryReadableChars) {
+    score += 6;
+    reasons.push("文本字符可读性高");
+  } else if (hasReadableChars) {
+    score += 3;
+    reasons.push("文本字符可读性正常");
+  } else if (hasLikelyGarbledText) {
+    score -= 16;
+    reasons.push("疑似存在乱码或不可读字符");
+  }
+
+  return {
+    score: clamp(score),
+    summary: reasons.slice(0, 4).join("；") || "基于文件格式、文本提取质量、栏目结构和字符可读性进行评估"
+  };
+}
+
+function readableTextRatio(text: string) {
+  const compact = text.replace(/\s/g, "");
+  if (!compact.length) return 0;
+  const readable = compact.match(/[\u4e00-\u9fa5A-Za-z0-9%.,，。:：;；/()（）+\-#]/g)?.length ?? 0;
+  return readable / compact.length;
 }
