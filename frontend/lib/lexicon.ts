@@ -31,7 +31,7 @@ export type SelectedLexicon = {
   synonyms: Record<string, string[]>;
 };
 
-const lexicon = careerLexicon as CareerLexicon;
+const lexicon = careerLexicon as unknown as CareerLexicon;
 const genericDomain: DomainLexicon = {
   id: "general",
   name: "通用求职",
