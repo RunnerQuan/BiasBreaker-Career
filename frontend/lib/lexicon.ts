@@ -1,4 +1,5 @@
 import careerLexicon from "../data/career-lexicon.json";
+import careerLexiconExtra from "../data/career-lexicon-extra.json";
 
 export type EvidenceCategory = "action" | "object" | "method" | "output" | "metric";
 
@@ -21,6 +22,12 @@ type CareerLexicon = {
   domains: DomainLexicon[];
 };
 
+type CareerLexiconExtension = {
+  version: string;
+  description?: string;
+  domains: DomainLexicon[];
+};
+
 export type SelectedLexicon = {
   domain: DomainLexicon;
   domains: DomainLexicon[];
@@ -31,7 +38,13 @@ export type SelectedLexicon = {
   synonyms: Record<string, string[]>;
 };
 
-const lexicon = careerLexicon as unknown as CareerLexicon;
+const baseLexicon = careerLexicon as unknown as CareerLexicon;
+const extraLexicon = careerLexiconExtra as unknown as CareerLexiconExtension;
+const lexicon: CareerLexicon = {
+  ...baseLexicon,
+  domains: mergeDomains(baseLexicon.domains, extraLexicon.domains)
+};
+
 const genericDomain: DomainLexicon = {
   id: "general",
   name: "通用求职",
@@ -145,6 +158,28 @@ function mergeSynonyms(domains: DomainLexicon[]) {
     }
     return result;
   }, {});
+}
+
+function mergeDomains(baseDomains: DomainLexicon[], extraDomains: DomainLexicon[]) {
+  const byId = new Map<string, DomainLexicon>();
+  for (const domain of [...baseDomains, ...extraDomains]) {
+    const current = byId.get(domain.id);
+    byId.set(domain.id, current ? mergeDomain(current, domain) : domain);
+  }
+  return [...byId.values()];
+}
+
+function mergeDomain(base: DomainLexicon, extra: DomainLexicon): DomainLexicon {
+  return {
+    ...base,
+    name: extra.name || base.name,
+    jobAliases: unique([...base.jobAliases, ...extra.jobAliases]),
+    coreSkills: unique([...base.coreSkills, ...extra.coreSkills]),
+    tools: unique([...base.tools, ...extra.tools]),
+    actionVerbs: unique([...base.actionVerbs, ...extra.actionVerbs]),
+    evidenceMarkers: unique([...base.evidenceMarkers, ...extra.evidenceMarkers]),
+    synonyms: mergeSynonyms([base, extra])
+  };
 }
 
 function synonymMatches(text: string, keyword: string, synonyms: Record<string, string[]>) {
