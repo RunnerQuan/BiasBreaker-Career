@@ -39,6 +39,11 @@ export type AnalysisSuggestion = {
   title: string;
   description: string;
   example: string;
+  original?: string;
+  risk?: string;
+  rewritten?: string;
+  reason?: string;
+  severity?: RiskLevel;
 };
 
 export type AnalysisResponse = {
@@ -163,6 +168,7 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
     ...matchedKeywords,
     ...Object.values(evidence.matchedByCategory).flat()
   ]);
+  const originalEvidence = pickEvidence(resumeText, evidenceTerms.length ? evidenceTerms : targetKeywords);
 
   const findings: AnalysisFinding[] = [];
   if (missingKeywords.length > 0) {
@@ -180,7 +186,7 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
       type: "经历证据链不足",
       severity: evidence.score < 62 ? "high" : "medium",
       source: "resume",
-      evidence: pickEvidence(resumeText, evidenceTerms.length ? evidenceTerms : targetKeywords),
+      evidence: originalEvidence,
       suggestion: "建议补齐“动作—对象—方法/工具—产出/指标”链条，尤其要说明具体对象、使用方法、产出物和可核验结果。"
     });
   }
@@ -231,17 +237,32 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
       {
         title: "补齐岗位关键词",
         description: `优先处理 ${mainMissing} 等表达缺口。`,
-        example: `将真实经历改写为“围绕${mainMissing}进行资料整理、问题分析，并输出可复用的复盘建议”。`
+        example: `将真实经历改写为“围绕${mainMissing}进行资料整理、问题分析，并输出可复用的复盘建议”。`,
+        original: originalEvidence,
+        risk: `原句没有充分体现 ${mainMissing} 等 JD 关键词，招聘系统可能难以识别相关能力。`,
+        rewritten: `围绕${mainMissing}进行资料整理、问题分析，并输出可复用的复盘建议。`,
+        reason: "将已有经历中的动作和产出转译为岗位语言，提升 ATS 与 HR 对相关能力的识别概率。",
+        severity: missingKeywords.length >= 5 ? "high" : "medium"
       },
       {
         title: "把经历写成证据链",
         description: "避免只写“熟悉、参与、负责”，补充对象、方法、工具、产出和指标。",
-        example: "参与用户反馈整理，使用 Excel 按问题类型归类，输出选题优化清单，支持后续内容复盘。"
+        example: "参与用户反馈整理，使用 Excel 按问题类型归类，输出选题优化清单，支持后续内容复盘。",
+        original: originalEvidence,
+        risk: "表达中如果只有动作词，缺少对象、方法、产出或结果，会削弱经历可信度。",
+        rewritten: "参与用户反馈整理，使用 Excel 按问题类型归类，输出选题优化清单，支持后续内容复盘。",
+        reason: "用“动作—对象—方法—产出”补齐证据链，但不编造不存在的数据。",
+        severity: evidence.score < 62 ? "high" : "medium"
       },
       {
         title: "准备人工复核说明",
         description: "对于校园项目、跨专业或非典型经历，用能力语言解释相关性。",
-        example: `我的经历与${targetTitle}的要求相关，主要体现在信息整理、问题分析、跨团队协作和结果复盘能力。`
+        example: `我的经历与${targetTitle}的要求相关，主要体现在信息整理、问题分析、跨团队协作和结果复盘能力。`,
+        original: originalEvidence,
+        risk: "非典型经历如果不解释与目标岗位的关系，容易被算法或 HR 低估。",
+        rewritten: `我的经历与${targetTitle}的要求相关，主要体现在信息整理、问题分析、跨团队协作和结果复盘能力。`,
+        reason: "把非标准经历转译为岗位通用能力，便于人工复核与面试解释。",
+        severity: "medium"
       }
     ],
     reviewScripts: {
