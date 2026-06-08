@@ -69,12 +69,16 @@ export function HomeCaseShowcase() {
     <section id="cases" className="case-showcase snap-section" aria-labelledby="case-showcase-title">
       <div className="case-glow case-glow-coral" aria-hidden="true" />
       <div className="case-glow case-glow-aqua" aria-hidden="true" />
-      <span className="case-paperclip case-paperclip-left" aria-hidden="true" />
-      <span className="case-paperclip case-paperclip-right" aria-hidden="true" />
+      <span className="case-paperclip case-paperclip-left" aria-hidden="true"><span className="paperclip-shape" /></span>
+      <span className="case-paperclip case-paperclip-right" aria-hidden="true"><span className="paperclip-shape" /></span>
 
       <div className="case-showcase-content">
         <motion.div className="case-heading" {...enter(0.02)}>
-          <span className="case-kicker">✦ 案例展示 ✦</span>
+          <span className="case-kicker">
+            <b>案例展示</b>
+            <i />
+            <strong>Case Studies</strong>
+          </span>
           <h2 id="case-showcase-title">
             真实案例：当能力存在，却没有被系统<span>正确识别</span>
           </h2>
@@ -107,7 +111,7 @@ export function HomeCaseShowcase() {
                 <i aria-hidden="true">✦</i>
                 <div>
                   <strong>改写后（更容易被识别）</strong>
-                  <p>{item.rewritten}</p>
+                  <p className="case-rewrite-copy">{item.rewritten}</p>
                   <div className="case-ability-tags">{item.abilities.map((ability) => <span key={ability}>✓ {ability}</span>)}</div>
                 </div>
               </div>
@@ -120,7 +124,11 @@ export function HomeCaseShowcase() {
         <motion.div className="case-bottom-bar" {...enter(0.34)}>
           <p><span>✦</span> BiasBreaker Career 不改变你的经历，只改变算法的理解方式。</p>
           <strong>打破算法偏见，让真实能力被看见。</strong>
-          <Link href="/analyze">用我的简历试试看 <b>→</b></Link>
+          <Link href="/analyze">
+            <span>用我的简历试试看</span>
+            <small>Try My Resume</small>
+            <b>→</b>
+          </Link>
         </motion.div>
       </div>
     </section>,
