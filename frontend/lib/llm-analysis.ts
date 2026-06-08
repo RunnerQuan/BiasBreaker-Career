@@ -49,8 +49,8 @@ function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanti
     {
       task: "生成一份算法可读性完整报告，先识别会被机器误读的点，再给出可执行、可申诉、可复核的材料优化建议。",
       outputContract: {
-        score: "0-100 整数，综合字面匹配、语义匹配、结构、证据、ATS 可读性；不要只看关键词。",
-        level: "low | medium | high。注意最终系统会按 score 重新校准：score < 75 为 high，75-90 为 medium，>90 为 low。",
+        score: "0-100 整数。注意：最终系统会按四个维度的加权公式重新计算总分，模型返回 score 仅作参考，不应与维度分冲突。",
+        level: "low | medium | high。注意最终系统会按重新计算后的 score 校准：score < 75 为 high，75-90 为 medium，>90 为 low。",
         summary: "不超过 80 字，先说核心结论，再说最需要修正的一点。",
         dimensions:
           "必须返回 4 项：keywordCoverage/关键词覆盖、structureClarity/结构清晰度、evidenceStrength/经历证据、atsReadability/系统可读性（ATS）。每项 score 0-100，summary 不超过 40 字。",
@@ -62,6 +62,7 @@ function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanti
           "manualReview 是给 HR/招聘方的复核话术，120-180 字；interviewExplanation 是面试解释，100-160 字；岗位名必须简短，不要复制完整 JD。"
       },
       scoringGuidance: {
+        totalScoreFormula: "score = keywordCoverage * 0.34 + structureClarity * 0.20 + evidenceStrength * 0.32 + atsReadability * 0.14",
         keywordCoverage: "JD 核心词、同义词、能力表达是否被简历覆盖；Embedding 相关但字面缺失时，不能直接判 0，要指出转译缺口。",
         structureClarity: "栏目标题、分段、项目层级、技能列表是否便于 ATS 定位。",
         evidenceStrength: "是否有对象、动作、方法、产出、量化指标；没有数字时可建议补充但不能编造。",
@@ -86,7 +87,7 @@ function normalizeLLMResponse(text: string, fallback: AnalysisResponse, semantic
   const parsed = parseJsonObject(text);
   const reviewScripts = asObject(parsed.reviewScripts);
   const dimensions = normalizeDimensions(parsed.dimensions, fallback.dimensions);
-  const score = clampInteger(parsed.score, fallback.score);
+  const score = recomputeScoreFromDimensions(dimensions);
   const level = riskLevelFromScore(score);
 
   return {
@@ -107,6 +108,17 @@ function normalizeLLMResponse(text: string, fallback: AnalysisResponse, semantic
       )
     }
   };
+}
+
+function recomputeScoreFromDimensions(dimensions: AnalysisDimension[]) {
+  const scores = Object.fromEntries(dimensions.map((item) => [item.key, item.score])) as Partial<Record<AnalysisDimension["key"], number>>;
+  return clampInteger(
+    (scores.keywordCoverage ?? 0) * 0.34 +
+      (scores.structureClarity ?? 0) * 0.2 +
+      (scores.evidenceStrength ?? 0) * 0.32 +
+      (scores.atsReadability ?? 0) * 0.14,
+    0
+  );
 }
 
 function parseJsonObject(text: string): JsonObject {
