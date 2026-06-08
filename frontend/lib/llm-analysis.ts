@@ -41,10 +41,11 @@ export async function analyzeResumeWithLLM(
       {
         role: "system",
         content: [
-          "你是 BiasBreaker Career 的语义校准引擎，目标是帮助非典型求职者避免被 ATS/招聘算法误读。",
-          "你不能直接覆盖规则分，也不能直接决定最终总分。规则分是稳定、可复现的底座；你的工作是基于 JD、简历和语义证据，对规则分做有限幅度校准。",
+          "你是 BiasBreaker Career 的语义校准与证据约束改写引擎，目标是帮助非典型求职者避免被 ATS/招聘算法误读。",
+          "你不能直接覆盖规则分，也不能直接决定最终总分。规则分是稳定、可复现的底座；你的工作是基于 JD、简历和语义证据，对规则分做有限幅度校准，并生成可对照的改写建议。",
           "必须遵守：1. 只基于输入 JD、简历和 Embedding 语义证据；2. 不编造经历、项目、数据、公司、职位、奖项或结果；3. 不承诺录用；4. 不输出年龄、性别、地域、学校出身等歧视性结论；5. 对岗位隐性门槛只做风险提示，不把它归咎于候选人。",
           "校准原则：关键词覆盖可以因同义表达、跨专业经历转译适度上调或下调；经历证据要更严格，若只有空泛动作词但缺少对象/方法/产出/指标，应下调；结构清晰度和 ATS 可读性只能小幅校准，因为它们主要由系统解析质量决定。",
+          "改写原则：每条 suggestion 必须包含 original、risk、rewritten、reason、severity。original 必须来自简历原文或对原文的忠实摘录；risk 必须说明算法/HR 误读风险；rewritten 只能改写已有经历，缺少数据时用 [待确认：...] 占位；reason 解释为什么这样改。",
           "输出严格 JSON，不要 Markdown，不要解释 JSON 外的任何文字。"
         ].join("\n")
       },
@@ -61,7 +62,7 @@ export async function analyzeResumeWithLLM(
 function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanticSignals?: SemanticSignals) {
   return JSON.stringify(
     {
-      task: "基于规则分进行语义校准，并生成算法可读性报告。不要直接重评分，只输出每个维度的有限调整项 delta 和理由。",
+      task: "基于规则分进行语义校准，并生成算法可读性报告。不要直接重评分，只输出每个维度的有限调整项 delta 和理由；改写建议必须使用“原句-风险-改写后-改写理由”的结构。",
       outputContract: {
         dimensionAdjustments:
           "必须返回数组。每项包含 key, delta, reason。key 只能是 keywordCoverage/structureClarity/evidenceStrength/atsReadability。delta 是整数，表示在规则分基础上的调整，不是最终分。reason 必须引用 JD/简历中的具体证据或指出缺失证据。",
@@ -71,9 +72,19 @@ function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanti
         findings:
           "返回 2-4 项。每项包含 type,severity,source,evidence,suggestion。evidence 必须引用或概括原文具体证据；suggestion 必须指出如何修，不要泛泛而谈。",
         suggestions:
-          "返回 3 项。每项包含 title,description,example。example 是可直接替换到简历/补充说明中的示例，必须忠实于原文。缺证据时使用 [待确认：...] 占位。",
+          "返回 3 项。每项必须包含 title,description,example,original,risk,rewritten,reason,severity。severity 为 low/medium/high。original 是简历原句或忠实摘录；risk 是误读风险；rewritten 是改写后可替换文本；reason 是改写理由；example 应与 rewritten 保持一致。缺少真实数据时必须使用 [待确认：具体数据/指标]，不能编造。",
         reviewScripts:
           "manualReview 是给 HR/招聘方的复核话术，120-180 字；interviewExplanation 是面试解释，100-160 字；岗位名必须简短，不要复制完整 JD。"
+      },
+      suggestionExample: {
+        title: "补齐岗位关键词：用户增长与活动转化",
+        severity: "medium",
+        original: "负责校园活动宣传和社群维护。",
+        risk: "原句未体现 JD 中的用户增长、活动转化等核心能力，ATS 可能只识别为普通宣传协助。",
+        rewritten: "参与校园社群运营与活动转化，通过微信群触达、报名反馈整理和活动复盘，支持用户增长目标。",
+        reason: "将“宣传、维护”转译为“社群运营、活动转化、用户增长”，但不编造不存在的数据。",
+        description: "把泛化职责转译为岗位语言。",
+        example: "参与校园社群运营与活动转化，通过微信群触达、报名反馈整理和活动复盘，支持用户增长目标。"
       },
       scoringGuidance: {
         finalFormula: "最终维度分 = 规则分 + 有界 delta；最终总分 = keywordCoverage * 0.34 + structureClarity * 0.20 + evidenceStrength * 0.32 + atsReadability * 0.14。系统会自动计算，你不需要返回最终 score。",
@@ -88,6 +99,7 @@ function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanti
         score: item.score,
         summary: item.summary
       })),
+      ruleSuggestions: fallback.suggestions,
       semanticSignals,
       jobTitle: compactJobTitle(input.jobTitle, input.jdText),
       jdText: compactText(input.jdText, 3800),
@@ -190,10 +202,19 @@ function normalizeSuggestions(value: unknown, fallback: AnalysisSuggestion[]) {
   const items = value
     .map((item) => {
       const record = asObject(item);
+      const rewritten = normalizeString(record.rewritten, normalizeString(record.example, ""));
+      const original = normalizeString(record.original, "");
+      const risk = normalizeString(record.risk, normalizeString(record.description, ""));
+      const reason = normalizeString(record.reason, normalizeString(record.description, ""));
       return {
         title: normalizeString(record.title, ""),
-        description: normalizeString(record.description, ""),
-        example: normalizeString(record.example, "")
+        description: normalizeString(record.description, risk || reason),
+        example: normalizeString(record.example, rewritten),
+        original,
+        risk,
+        rewritten,
+        reason,
+        severity: normalizeLevel(record.severity, "medium")
       };
     })
     .filter((item) => item.title && item.description && item.example);
