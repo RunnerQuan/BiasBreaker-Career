@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "framer-motion";
+import { usePathname } from "next/navigation";
 
 const cases = [
   {
@@ -36,32 +37,55 @@ const cases = [
 ];
 
 export function HomeCaseShowcase() {
+  const pathname = usePathname();
   const [host, setHost] = useState<HTMLElement | null>(null);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    const home = document.querySelector<HTMLElement>(".snap-home");
-    if (!home) return;
+    if (pathname !== "/") {
+      setHost(null);
+      return;
+    }
 
-    const mount = document.createElement("div");
-    mount.className = "home-case-portal";
-    const usageSection = home.querySelector("#flow");
-    home.insertBefore(mount, usageSection || null);
-    setHost(mount);
+    let cancelled = false;
+    let mountedHost: HTMLElement | null = null;
+    const timers: number[] = [];
+
+    const attach = () => {
+      if (cancelled) return;
+      const home = document.querySelector<HTMLElement>(".snap-home");
+      const usageSection = home?.querySelector<HTMLElement>("#flow");
+      if (!home || !usageSection) return;
+
+      const existing = home.querySelector<HTMLElement>(".home-case-portal");
+      mountedHost = existing ?? document.createElement("div");
+      if (!existing) {
+        mountedHost.className = "home-case-portal";
+        home.insertBefore(mountedHost, usageSection);
+      }
+      setHost(mountedHost);
+    };
+
+    attach();
+    timers.push(window.setTimeout(attach, 60));
+    timers.push(window.setTimeout(attach, 180));
+    timers.push(window.setTimeout(attach, 420));
 
     return () => {
+      cancelled = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+      if (mountedHost?.isConnected) mountedHost.remove();
       setHost(null);
-      mount.remove();
     };
-  }, []);
+  }, [pathname]);
 
-  if (!host) return null;
+  if (!host || pathname !== "/") return null;
 
   const enter = (delay = 0) => ({
-    initial: reduceMotion ? { opacity: 1 } : { opacity: 0, y: 28, filter: "blur(8px)" },
-    whileInView: { opacity: 1, y: 0, filter: "blur(0px)" },
-    viewport: { once: true, amount: 0.25 },
-    transition: { duration: 0.68, delay, ease: [0.16, 1, 0.3, 1] as const }
+    initial: reduceMotion ? { opacity: 1 } : { opacity: 0, y: 18 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, amount: 0.2 },
+    transition: { duration: 0.5, delay, ease: [0.16, 1, 0.3, 1] as const }
   });
 
   return createPortal(
@@ -73,48 +97,21 @@ export function HomeCaseShowcase() {
 
       <div className="case-showcase-content">
         <motion.div className="case-heading" {...enter(0.02)}>
-          <span className="case-kicker">
-            <b>案例展示</b>
-            <i />
-            <strong>Case Studies</strong>
-          </span>
-          <h2 id="case-showcase-title">
-            真实案例：当能力存在，却没有被系统<span>正确识别</span>
-          </h2>
+          <span className="case-kicker"><b>案例展示</b><i /><strong>Case Studies</strong></span>
+          <h2 id="case-showcase-title">真实案例：当能力存在，却没有被系统<span>正确识别</span></h2>
           <p>识别简历在招聘算法中的可读性风险，把已有经历转译成更容易被 ATS 与 HR 理解的表达。</p>
         </motion.div>
 
         <div className="case-grid">
           {cases.map((item, index) => (
-            <motion.article className="case-card" key={item.index} {...enter(0.12 + index * 0.1)}>
-              <header className="case-card-head">
-                <div><b>{item.index}</b><h3>{item.title}</h3></div>
-                <span>⚠ 算法误读风险</span>
-              </header>
-
-              <div className="case-original-block">
-                <i aria-hidden="true">▤</i>
-                <div><strong>原始表达</strong><p>{item.original}</p></div>
-              </div>
-
+            <motion.article className="case-card" key={item.index} {...enter(0.08 + index * 0.07)}>
+              <header className="case-card-head"><div><b>{item.index}</b><h3>{item.title}</h3></div><span>⚠ 算法误读风险</span></header>
+              <div className="case-original-block"><i aria-hidden="true">▤</i><div><strong>原始表达</strong><p>{item.original}</p></div></div>
               <div className="case-misread-flow" aria-label="系统可能误读">
                 <div className="case-arrow" aria-hidden="true">↓</div>
-                <div className="case-misread-copy">
-                  <strong>系统可能误读</strong>
-                  <p>{item.riskText}</p>
-                  <div className="case-risk-tags">{item.risks.map((risk) => <span key={risk}>{risk}</span>)}</div>
-                </div>
+                <div className="case-misread-copy"><strong>系统可能误读</strong><p>{item.riskText}</p><div className="case-risk-tags">{item.risks.map((risk) => <span key={risk}>{risk}</span>)}</div></div>
               </div>
-
-              <div className="case-rewrite-block">
-                <i aria-hidden="true">✦</i>
-                <div>
-                  <strong>改写后（更容易被识别）</strong>
-                  <p className="case-rewrite-copy">{item.rewritten}</p>
-                  <div className="case-ability-tags">{item.abilities.map((ability) => <span key={ability}>✓ {ability}</span>)}</div>
-                </div>
-              </div>
-
+              <div className="case-rewrite-block"><i aria-hidden="true">✦</i><div><strong>改写后（更容易被识别）</strong><p className="case-rewrite-copy">{item.rewritten}</p><div className="case-ability-tags">{item.abilities.map((ability) => <span key={ability}>✓ {ability}</span>)}</div></div></div>
               <footer>♢ 真实能力显性化：{item.value}</footer>
             </motion.article>
           ))}
