@@ -1,0 +1,80 @@
+/* Unified handwritten-note typography */
+.note-paper p,
+.analyze-sticky,
+.history-sticky {
+  font-family: "KaiTi", "STKaiti", "Kaiti SC", "FangSong", "STFangsong", serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em;
+  line-height: 1.48;
+  text-rendering: optimizeLegibility;
+}
+
+/* Match the analyze/history right-side desk objects to the home hero composition. */
+.analyze-page .analyze-pen,
+.history-page .analyze-pen {
+  left: auto !important;
+  right: clamp(18px, 1.7vw, 34px) !important;
+  top: 43% !important;
+  bottom: auto !important;
+  transform: rotate(-25deg) scale(1.02) !important;
+  transform-origin: center;
+  opacity: 0.82;
+  filter: drop-shadow(0 18px 18px rgba(32, 56, 78, 0.12));
+}
+
+.analyze-page .analyze-clip,
+.history-page .analyze-clip {
+  left: auto !important;
+  right: clamp(46px, 5vw, 88px) !important;
+  top: auto !important;
+  bottom: clamp(24px, 4.5vh, 58px) !important;
+  transform: rotate(-8deg) scale(0.96) !important;
+  transform-origin: center;
+  opacity: 0.86;
+  filter: drop-shadow(0 16px 20px rgba(32, 56, 78, 0.1));
+}
+
+/* Keep the upper-left notes visually consistent and away from the main cards. */
+.analyze-page .analyze-sticky,
+.history-page .history-sticky {
+  left: clamp(26px, 4.5vw, 76px) !important;
+  right: auto !important;
+  top: clamp(112px, 15vh, 154px) !important;
+  bottom: auto !important;
+  transform: rotate(-7deg) !important;
+}
+
+@media (max-width: 1180px) {
+  .analyze-page .analyze-pen,
+  .history-page .analyze-pen {
+    right: 8px !important;
+    opacity: 0.46;
+    transform: rotate(-25deg) scale(0.82) !important;
+  }
+
+  .analyze-page .analyze-clip,
+  .history-page .analyze-clip {
+    right: 22px !important;
+    bottom: 24px !important;
+    opacity: 0.52;
+    transform: rotate(-8deg) scale(0.78) !important;
+  }
+
+  .analyze-page .analyze-sticky,
+  .history-page .history-sticky {
+    left: 18px !important;
+    opacity: 0.56;
+    transform: rotate(-7deg) scale(0.88) !important;
+  }
+}
+
+@media (max-width: 820px) {
+  .analyze-page .analyze-pen,
+  .history-page .analyze-pen,
+  .analyze-page .analyze-clip,
+  .history-page .analyze-clip,
+  .analyze-page .analyze-sticky,
+  .history-page .history-sticky {
+    display: none !important;
+  }
+}
