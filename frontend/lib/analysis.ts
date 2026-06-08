@@ -113,14 +113,15 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
   const resumeText = input.resumeText.trim();
   const selectedLexicon = selectCareerLexicon(jdText, input.jobTitle);
   const jdKeywords = extractJDKeywords(jdText, selectedLexicon);
-  const dynamicKeywords = extractDynamicJDKeywords(jdText);
-  const fallbackKeywords = selectedLexicon.keywords.slice(0, 24);
-  const targetKeywords = unique([...(jdKeywords.length ? jdKeywords : fallbackKeywords), ...dynamicKeywords]).slice(0, 48);
+  const fallbackKeywords = selectedLexicon.keywords.slice(0, 18);
+  const primaryKeywords = unique(jdKeywords.length ? jdKeywords : fallbackKeywords).slice(0, 28);
+  const dynamicKeywords = extractDynamicJDKeywords(jdText, primaryKeywords).slice(0, 8);
+  const targetKeywords = unique([...primaryKeywords, ...dynamicKeywords]);
   const matchedKeywords = findMatchedKeywords(resumeText, targetKeywords, selectedLexicon.synonyms);
   const missingKeywords = findMissingKeywords(resumeText, targetKeywords, selectedLexicon.synonyms);
   const riskMarkers = findRiskMarkers(jdText, selectedLexicon);
 
-  const keywordCoverage = scoreKeywordCoverage(targetKeywords, matchedKeywords, resumeText, selectedLexicon);
+  const keywordCoverage = scoreKeywordCoverage(primaryKeywords, dynamicKeywords, matchedKeywords, resumeText, selectedLexicon);
   const structure = scoreStructureClarity(resumeText, selectedLexicon.structureMarkers);
   const evidence = scoreEvidenceQuality(resumeText, selectedLexicon);
   const atsReadabilityResult = scoreAtsReadability(resumeText, input.resumeFileName, structure.score);
@@ -130,7 +131,9 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
       key: "keywordCoverage",
       label: "关键词覆盖",
       score: keywordCoverage,
-      summary: matchedKeywords.length ? `已覆盖 ${matchedKeywords.slice(0, 8).join("、")}` : "暂未覆盖明显岗位关键词"
+      summary: matchedKeywords.length
+        ? `已覆盖 ${matchedKeywords.slice(0, 8).join("、")}`
+        : "暂未覆盖明显岗位关键词"
     },
     {
       key: "structureClarity",
@@ -248,14 +251,32 @@ export function analyzeResumeInput(input: AnalysisRequest): AnalysisResponse {
   };
 }
 
-function scoreKeywordCoverage(targetKeywords: string[], matchedKeywords: string[], resumeText: string, selectedLexicon: SelectedLexicon) {
-  if (targetKeywords.length === 0) return 56;
-  const rawCoverage = (matchedKeywords.length / targetKeywords.length) * 100;
+function scoreKeywordCoverage(
+  primaryKeywords: string[],
+  dynamicKeywords: string[],
+  matchedKeywords: string[],
+  resumeText: string,
+  selectedLexicon: SelectedLexicon
+) {
+  if (primaryKeywords.length === 0 && dynamicKeywords.length === 0) return 56;
+
+  const matchedSet = new Set(matchedKeywords);
+  const primaryMatched = primaryKeywords.filter((keyword) => matchedSet.has(keyword));
+  const dynamicMatched = dynamicKeywords.filter((keyword) => matchedSet.has(keyword));
+  const primaryCoverage = primaryKeywords.length ? (primaryMatched.length / primaryKeywords.length) * 100 : 58;
+  const dynamicCoverage = dynamicKeywords.length ? (dynamicMatched.length / dynamicKeywords.length) * 100 : primaryCoverage;
   const exactCoreMatches = selectedLexicon.domain.coreSkills.filter((term) => includesLoose(resumeText, term)).length;
   const toolMatches = selectedLexicon.domain.tools.filter((term) => includesLoose(resumeText, term)).length;
-  const breadthBonus = Math.min(8, exactCoreMatches * 2 + toolMatches);
-  const missingPenalty = Math.max(0, targetKeywords.length - matchedKeywords.length - 4) * 1.5;
-  return clamp(rawCoverage * 0.9 + breadthBonus - missingPenalty);
+  const breadthBonus = Math.min(10, exactCoreMatches * 2 + toolMatches);
+  const severeMissingPenalty = Math.max(0, primaryKeywords.length - primaryMatched.length - Math.ceil(primaryKeywords.length * 0.55)) * 1.2;
+
+  let score = primaryCoverage * 0.82 + dynamicCoverage * 0.08 + breadthBonus - severeMissingPenalty;
+
+  if (primaryMatched.length >= 3 || exactCoreMatches + toolMatches >= 3) score = Math.max(score, 45);
+  if (primaryMatched.length >= 5 || exactCoreMatches + toolMatches >= 5) score = Math.max(score, 58);
+  if (primaryMatched.length >= 8 || exactCoreMatches + toolMatches >= 8) score = Math.max(score, 70);
+
+  return clamp(score);
 }
 
 function scoreStructureClarity(resumeText: string, structureMarkers: string[]): StructureScoreResult {
@@ -442,15 +463,28 @@ function scoreAtsReadability(resumeText: string, resumeFileName: string | undefi
   };
 }
 
-function extractDynamicJDKeywords(jdText: string) {
-  const stopWords = new Set(["负责", "参与", "协助", "相关", "工作", "岗位", "要求", "能力", "优先", "良好", "具备", "熟悉", "了解", "完成"]);
+function extractDynamicJDKeywords(jdText: string, primaryKeywords: string[]) {
+  const stopWords = new Set([
+    "负责", "参与", "协助", "相关", "工作", "岗位", "要求", "能力", "优先", "良好", "具备", "熟悉", "了解", "完成",
+    "进行", "以及", "包括", "需要", "能够", "具有", "较强", "优秀", "一定", "根据", "支持"
+  ]);
+  const primarySet = new Set(primaryKeywords);
   const englishTerms = jdText.match(/[A-Za-z][A-Za-z0-9+#./-]{1,30}/g) ?? [];
-  const chineseTerms = jdText.match(/[\u4e00-\u9fa5A-Za-z0-9+#./-]{2,12}/g) ?? [];
-  const abilityPattern = /分析|运营|设计|开发|管理|搭建|优化|投放|研究|沟通|复盘|增长|建模|测试|交付|调研|策划|剪辑|审核|采购|销售|招聘|财务|算法|模型|数据|用户|产品/;
+  const chineseCandidates = jdText
+    .split(/[\n，。；;、,.（）()：:【】\[\]\s]+/)
+    .map((term) => term.trim())
+    .filter(Boolean);
+  const abilityPattern = /分析|运营|设计|开发|管理|搭建|优化|投放|研究|复盘|增长|建模|测试|交付|调研|策划|剪辑|审核|采购|销售|招聘|财务|算法|模型|数据|用户|产品|接口|系统|报告|方案/;
+
   return unique([
     ...englishTerms.filter((term) => term.length <= 32),
-    ...chineseTerms.filter((term) => abilityPattern.test(term) && !stopWords.has(term) && term.length >= 3)
-  ]).slice(0, 18);
+    ...chineseCandidates.filter((term) => {
+      if (term.length < 3 || term.length > 10) return false;
+      if (stopWords.has(term) || primarySet.has(term)) return false;
+      if (/^[0-9]+$/.test(term)) return false;
+      return abilityPattern.test(term);
+    })
+  ]).slice(0, 8);
 }
 
 function splitEvidenceUnits(text: string) {
