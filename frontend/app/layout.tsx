@@ -11,9 +11,11 @@ import "@fontsource/noto-sans-sc/400.css";
 import "@fontsource/noto-sans-sc/500.css";
 import "@fontsource/noto-sans-sc/700.css";
 import "@fontsource/noto-sans-sc/900.css";
+import { HomeCaseShowcase } from "../components/HomeCaseShowcase";
 import "./globals.css";
 import "./loading-effects.css";
 import "./decor-overrides.css";
+import "./case-showcase.css";
 
 export const metadata: Metadata = {
   title: "BiasBreaker Career 破偏求职",
@@ -27,7 +29,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        {children}
+        <HomeCaseShowcase />
+      </body>
     </html>
   );
 }
