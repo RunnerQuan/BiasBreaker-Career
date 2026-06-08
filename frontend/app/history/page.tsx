@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppNav } from "../../components/AppNav";
-import { DimensionRadar } from "../../components/DimensionRadar";
-import type { AnalysisResponse, RiskLevel } from "../../lib/analysis";
+import { AnalysisResultModal } from "../../components/AnalysisResultModal";
+import type { RiskLevel } from "../../lib/analysis";
 import {
   buildReportMarkdown,
   deleteHistoryRecords,
@@ -140,9 +140,7 @@ export default function HistoryPage() {
 
           <div className="history-table">
             <div className="history-table-head">
-              <label>
-                <input type="checkbox" checked={allPageSelected} onChange={togglePageSelected} />
-              </label>
+              <label><input type="checkbox" checked={allPageSelected} onChange={togglePageSelected} /></label>
               <span>候选人</span>
               <span>目标岗位</span>
               <span>综合评分</span>
@@ -154,29 +152,19 @@ export default function HistoryPage() {
             {pageRecords.length ? (
               pageRecords.map((record, index) => (
                 <article className="history-row" key={record.id}>
-                  <label>
-                    <input type="checkbox" checked={selectedIds.includes(record.id)} onChange={() => toggleSelected(record.id)} />
-                  </label>
+                  <label><input type="checkbox" checked={selectedIds.includes(record.id)} onChange={() => toggleSelected(record.id)} /></label>
                   <div className="history-person">
                     <span className={`history-avatar avatar-${index % 4}`}>{record.candidateName.slice(0, 1)}</span>
                     <strong>{record.candidateName}</strong>
                   </div>
                   <span className="history-job" title={record.targetJob}>{record.targetJob}</span>
-                  <span className={`history-score score-${record.result.level}`}>
-                    {record.result.score}
-                    <small>/100</small>
-                  </span>
+                  <span className={`history-score score-${record.result.level}`}>{record.result.score}<small>/100</small></span>
                   <span className={`history-risk risk-${record.result.level}`}>{levelText(record.result.level)}</span>
                   <span className="history-time">{formatHistoryTime(record.createdAt)}</span>
                   <div className="history-actions">
                     <button type="button" onClick={() => setActiveRecord(record)}>查看报告</button>
-                    <button type="button" aria-label="下载报告" onClick={() => downloadRecord(record)}>
-                      <DownloadIcon />
-                    </button>
-                    <button type="button" onClick={() => requestDelete([record.id])}>
-                      <TrashIcon />
-                      删除
-                    </button>
+                    <button type="button" aria-label="下载报告" onClick={() => downloadRecord(record)}><DownloadIcon /></button>
+                    <button type="button" onClick={() => requestDelete([record.id])}><TrashIcon />删除</button>
                   </div>
                 </article>
               ))
@@ -192,9 +180,7 @@ export default function HistoryPage() {
           <div className="history-pagination">
             <button type="button" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>‹</button>
             {Array.from({ length: totalPages }).slice(0, 3).map((_, index) => (
-              <button key={index + 1} type="button" className={currentPage === index + 1 ? "active" : ""} onClick={() => setPage(index + 1)}>
-                {index + 1}
-              </button>
+              <button key={index + 1} type="button" className={currentPage === index + 1 ? "active" : ""} onClick={() => setPage(index + 1)}>{index + 1}</button>
             ))}
             {totalPages > 3 && <span>…</span>}
             <button type="button" disabled={currentPage === totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>›</button>
@@ -204,10 +190,7 @@ export default function HistoryPage() {
 
         <aside className="history-side">
           <section className="history-overview">
-            <h2>
-              <TrendIcon />
-              记录概览
-            </h2>
+            <h2><TrendIcon />记录概览</h2>
             <div>
               <StatCard label="总记录" value={records.length} tone="red" />
               <StatCard label="最近7天" value={overview.recent} tone="cyan" />
@@ -217,93 +200,26 @@ export default function HistoryPage() {
           </section>
 
           <section className="history-advice">
-            <h2>
-              <LightIcon />
-              使用建议
-            </h2>
+            <h2><LightIcon />使用建议</h2>
             <p>定期回顾历史记录，对比不同版本的分析结果，持续优化简历质量，降低偏见风险，提升通过率。</p>
             <span className="history-checklist" />
           </section>
         </aside>
       </section>
 
-      {activeRecord && <HistoryReportModal record={activeRecord} onClose={() => setActiveRecord(null)} />}
-      {pendingDeleteIds.length > 0 && (
-        <ConfirmDeleteDialog
-          count={pendingDeleteIds.length}
-          onCancel={() => setPendingDeleteIds([])}
-          onConfirm={confirmDelete}
+      {activeRecord && (
+        <AnalysisResultModal
+          result={activeRecord.result}
+          onClose={() => setActiveRecord(null)}
+          title={`${activeRecord.candidateName} 的分析报告`}
+          subtitle={`${activeRecord.targetJob} · ${activeRecord.result.summary}`}
+          createdAtLabel={`生成时间：${formatHistoryTime(activeRecord.createdAt)}`}
         />
       )}
+      {pendingDeleteIds.length > 0 && (
+        <ConfirmDeleteDialog count={pendingDeleteIds.length} onCancel={() => setPendingDeleteIds([])} onConfirm={confirmDelete} />
+      )}
     </main>
-  );
-}
-
-function HistoryReportModal({ record, onClose }: { record: HistoryRecord; onClose: () => void }) {
-  const result = record.result;
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  return (
-    <div className="analysis-modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="analysis-modal" role="dialog" aria-modal="true" aria-labelledby="history-report-title" onClick={(event) => event.stopPropagation()}>
-        <header className="analysis-modal-head">
-          <div>
-            <span>{result.providerMode === "llm" ? "模型分析结果" : "规则分析结果"}</span>
-            <h2 id="history-report-title">{record.candidateName} 的分析报告</h2>
-            <p>{record.targetJob} · {result.summary}</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="关闭分析结果">×</button>
-        </header>
-        <div className="analysis-modal-score">
-          <div>
-            <strong>{result.score}</strong>
-            <span>/100</span>
-            <small>{levelText(result.level)}</small>
-          </div>
-          <p>生成时间：{formatHistoryTime(record.createdAt)}</p>
-        </div>
-        <div className="analysis-report-layout">
-          <aside className="analysis-report-side">
-            <section className="analysis-modal-card">
-              <h3>维度评分</h3>
-              <DimensionRadar dimensions={result.dimensions} />
-              <p className="dimension-help">系统可读性（ATS）衡量招聘系统能否顺利读取简历文本、栏目结构和关键信息。</p>
-              <div className="dimension-list">
-                {result.dimensions.map((dimension) => (
-                  <article key={dimension.key}>
-                    <div>
-                      <strong>{dimensionLabel(dimension.label)}</strong>
-                      <span>{dimension.score}</span>
-                    </div>
-                    <i style={{ "--value": dimension.score } as React.CSSProperties} />
-                    <p>{dimensionSummary(dimension)}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-          </aside>
-          <div className="analysis-report-main">
-            <ModalCard title="风险报告与证据引用" result={result} mode="findings" />
-            <ModalCard title="改写建议" result={result} mode="suggestions" />
-            <section className="analysis-modal-card">
-              <h3>复核话术与面试解释</h3>
-              <div className="script-list">
-                <article><strong>人工复核话术</strong><p>{result.reviewScripts.manualReview}</p></article>
-                <article><strong>面试解释</strong><p>{result.reviewScripts.interviewExplanation}</p></article>
-              </div>
-            </section>
-          </div>
-        </div>
-      </section>
-    </div>
   );
 }
 
@@ -312,7 +228,6 @@ function ConfirmDeleteDialog({ count, onCancel, onConfirm }: { count: number; on
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onCancel();
     }
-
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onCancel]);
@@ -320,65 +235,17 @@ function ConfirmDeleteDialog({ count, onCancel, onConfirm }: { count: number; on
   return (
     <div className="analysis-modal-backdrop confirm-backdrop" role="presentation" onClick={onCancel}>
       <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-delete-title" onClick={(event) => event.stopPropagation()}>
-        <span className="confirm-icon">
-          <TrashIcon />
-        </span>
+        <span className="confirm-icon"><TrashIcon /></span>
         <h2 id="confirm-delete-title">确认删除历史记录？</h2>
         <p>将删除选中的 {count} 条分析记录。删除后无法恢复，但不会影响你本地的原始简历文件。</p>
-        <div>
-          <button type="button" onClick={onCancel}>
-            取消
-          </button>
-          <button type="button" onClick={onConfirm}>
-            确认删除
-          </button>
-        </div>
+        <div><button type="button" onClick={onCancel}>取消</button><button type="button" onClick={onConfirm}>确认删除</button></div>
       </section>
     </div>
   );
 }
 
-function dimensionLabel(label: string) {
-  return label === "ATS 可读性" ? "系统可读性（ATS）" : label;
-}
-
-function dimensionSummary(dimension: AnalysisResponse["dimensions"][number]) {
-  if (dimension.key !== "atsReadability") return dimension.summary;
-  return `${dimension.summary}。ATS 指招聘系统自动读取简历的能力，重点看格式、文本可复制性和栏目是否容易被系统识别。`;
-}
-
-function ModalCard({ title, result, mode }: { title: string; result: AnalysisResponse; mode: "findings" | "suggestions" }) {
-  return (
-    <section className="analysis-modal-card">
-      <h3>{title}</h3>
-      {mode === "findings" ? (
-        <div className="finding-list">
-          {result.findings.map((finding, index) => (
-            <article key={`${finding.type}-${index}`}>
-              <div><strong>{finding.type}</strong><span className={`severity severity-${finding.severity}`}>{levelText(finding.severity)}</span></div>
-              <blockquote>{finding.evidence}</blockquote>
-              <p>{finding.suggestion}</p>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="suggestion-list">
-          {result.suggestions.map((suggestion) => (
-            <article key={suggestion.title}><strong>{suggestion.title}</strong><p>{suggestion.description}</p><em>{suggestion.example}</em></article>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 function StatCard({ label, value, tone }: { label: string; value: number; tone: "red" | "cyan" }) {
-  return (
-    <article className={`history-stat stat-${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </article>
-  );
+  return <article className={`history-stat stat-${tone}`}><span>{label}</span><strong>{value}</strong></article>;
 }
 
 function createOverview(records: HistoryRecord[]) {
