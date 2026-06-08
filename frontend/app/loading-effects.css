@@ -1,0 +1,227 @@
+.analysis-loading-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.analysis-loading-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(61, 200, 211, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 200, 211, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at 50% 24%, rgba(85, 200, 207, 0.12), transparent 30%);
+  background-size: 28px 28px, 28px 28px, auto;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 72%);
+}
+
+.analysis-loading-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.analysis-orbit {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  margin-bottom: 22px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+  isolation: isolate;
+}
+
+.analysis-orbit::before,
+.analysis-orbit::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.analysis-orbit::before {
+  inset: 8px;
+  border: 1px solid rgba(54, 179, 192, 0.28);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.96) 0 26%, transparent 27%),
+    conic-gradient(
+      from 18deg,
+      transparent 0 10%,
+      rgba(255, 102, 112, 0.95) 12% 20%,
+      transparent 22% 38%,
+      rgba(69, 202, 211, 0.95) 40% 54%,
+      transparent 56% 74%,
+      rgba(255, 177, 95, 0.92) 76% 88%,
+      transparent 90% 100%
+    );
+  filter: drop-shadow(0 0 12px rgba(61, 195, 205, 0.28));
+  animation: analysis-core-spin 2.8s linear infinite;
+}
+
+.analysis-orbit::after {
+  inset: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.94);
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, 0.92), transparent 18%),
+    radial-gradient(circle at 50% 50%, #16304f 0 28%, #245070 30% 45%, rgba(85, 200, 207, 0.24) 47% 58%, transparent 60%);
+  box-shadow:
+    0 0 0 10px rgba(85, 200, 207, 0.06),
+    0 0 28px rgba(49, 177, 189, 0.34),
+    inset 0 0 18px rgba(255, 255, 255, 0.34);
+  animation: analysis-core-pulse 1.8s ease-in-out infinite;
+}
+
+.analysis-orbit span {
+  position: absolute;
+  inset: auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 0 4px rgba(85, 200, 207, 0.13),
+    0 0 16px currentColor;
+  transform-origin: 59px 59px;
+}
+
+.analysis-orbit span:nth-child(1) {
+  top: 0;
+  left: 54px;
+  color: #ff7078;
+  background: #ff7078;
+  animation: analysis-node-orbit 2.4s linear infinite;
+}
+
+.analysis-orbit span:nth-child(2) {
+  top: 54px;
+  left: 0;
+  color: #4bc9d2;
+  background: #4bc9d2;
+  animation: analysis-node-orbit-reverse 3.1s linear infinite;
+}
+
+.analysis-orbit span:nth-child(3) {
+  right: 0;
+  bottom: 20px;
+  color: #ffb15f;
+  background: #ffb15f;
+  animation: analysis-node-pulse 1.4s ease-in-out infinite;
+}
+
+.analysis-loading-card strong {
+  background: linear-gradient(90deg, #14243b 0%, #14243b 42%, #14aeb9 58%, #14243b 76%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: analysis-title-scan 2.6s ease-in-out infinite;
+}
+
+.analysis-loading-card > div:last-child span {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(85, 200, 207, 0.12);
+  background: rgba(85, 200, 207, 0.09);
+}
+
+.analysis-loading-card > div:last-child span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-105%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  animation: analysis-chip-scan 2.4s ease-in-out infinite;
+}
+
+.analysis-loading-card > div:last-child span:nth-child(2)::after {
+  animation-delay: 0.35s;
+}
+
+.analysis-loading-card > div:last-child span:nth-child(3)::after {
+  animation-delay: 0.7s;
+}
+
+.analysis-loading-card > div:last-child span:nth-child(4)::after {
+  animation-delay: 1.05s;
+}
+
+@keyframes analysis-core-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes analysis-core-pulse {
+  0%,
+  100% {
+    transform: scale(0.94);
+    box-shadow:
+      0 0 0 8px rgba(85, 200, 207, 0.05),
+      0 0 20px rgba(49, 177, 189, 0.24),
+      inset 0 0 16px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow:
+      0 0 0 14px rgba(85, 200, 207, 0.08),
+      0 0 34px rgba(49, 177, 189, 0.42),
+      inset 0 0 22px rgba(255, 255, 255, 0.48);
+  }
+}
+
+@keyframes analysis-node-orbit {
+  to {
+    transform: rotate(1turn) translateX(1px);
+  }
+}
+
+@keyframes analysis-node-orbit-reverse {
+  to {
+    transform: rotate(-1turn) translateX(-1px);
+  }
+}
+
+@keyframes analysis-node-pulse {
+  0%,
+  100% {
+    transform: scale(0.72);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+@keyframes analysis-title-scan {
+  0%,
+  100% {
+    background-position: 100% 50%;
+  }
+  50% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes analysis-chip-scan {
+  0%,
+  25% {
+    transform: translateX(-105%);
+  }
+  70%,
+  100% {
+    transform: translateX(105%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysis-orbit::before,
+  .analysis-orbit::after,
+  .analysis-orbit span,
+  .analysis-loading-card strong,
+  .analysis-loading-card > div:last-child span::after {
+    animation: none !important;
+  }
+}
