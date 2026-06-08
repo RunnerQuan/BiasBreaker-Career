@@ -19,7 +19,7 @@ import "./decor-overrides.css";
 import "./case-showcase.css";
 import "./case-showcase-overrides.css";
 import "./home-side-nav.css";
-import "./home-performance.css";
+import "./home-risk.css";
 
 export const metadata: Metadata = {
   title: "BiasBreaker Career 破偏求职",
