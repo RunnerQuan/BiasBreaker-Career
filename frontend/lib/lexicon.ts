@@ -1,5 +1,6 @@
 import careerLexicon from "../data/career-lexicon.json";
 import careerLexiconExtra from "../data/career-lexicon-extra.json";
+import careerLexiconExtra2 from "../data/career-lexicon-extra-2.json";
 
 export type EvidenceCategory = "action" | "object" | "method" | "output" | "metric";
 
@@ -40,9 +41,10 @@ export type SelectedLexicon = {
 
 const baseLexicon = careerLexicon as unknown as CareerLexicon;
 const extraLexicon = careerLexiconExtra as unknown as CareerLexiconExtension;
+const extraLexicon2 = careerLexiconExtra2 as unknown as CareerLexiconExtension;
 const lexicon: CareerLexicon = {
   ...baseLexicon,
-  domains: mergeDomains(baseLexicon.domains, extraLexicon.domains)
+  domains: mergeDomains(baseLexicon.domains, extraLexicon.domains, extraLexicon2.domains)
 };
 
 const genericDomain: DomainLexicon = {
@@ -160,9 +162,9 @@ function mergeSynonyms(domains: DomainLexicon[]) {
   }, {});
 }
 
-function mergeDomains(baseDomains: DomainLexicon[], extraDomains: DomainLexicon[]) {
+function mergeDomains(...domainGroups: DomainLexicon[][]) {
   const byId = new Map<string, DomainLexicon>();
-  for (const domain of [...baseDomains, ...extraDomains]) {
+  for (const domain of domainGroups.flat()) {
     const current = byId.get(domain.id);
     byId.set(domain.id, current ? mergeDomain(current, domain) : domain);
   }
