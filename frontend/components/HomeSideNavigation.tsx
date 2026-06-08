@@ -42,42 +42,38 @@ export function HomeSideNavigation() {
       return;
     }
 
-    const attach = () => {
+    let cancelled = false;
+    let mountedHost: HTMLElement | null = null;
+    const timers: number[] = [];
+
+    const attachAndSync = () => {
+      if (cancelled) return;
       const home = document.querySelector<HTMLElement>(".snap-home");
-      if (!home) return null;
+      if (!home) return;
 
       const existing = home.querySelector<HTMLElement>(".home-side-nav-portal");
-      if (existing) {
-        setHost(existing);
-        return existing;
+      mountedHost = existing ?? document.createElement("div");
+      if (!existing) {
+        mountedHost.className = "home-side-nav-portal";
+        home.appendChild(mountedHost);
       }
 
-      const mount = document.createElement("div");
-      mount.className = "home-side-nav-portal";
-      home.appendChild(mount);
-      setHost(mount);
-      return mount;
+      setHost(mountedHost);
+      synchronizeHomepageUi();
     };
 
-    const initial = attach();
-    const observer = new MutationObserver(() => {
-      attach();
-      synchronizeHomepageUi();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    synchronizeHomepageUi();
+    attachAndSync();
+    timers.push(window.setTimeout(attachAndSync, 80));
+    timers.push(window.setTimeout(attachAndSync, 240));
+    timers.push(window.setTimeout(attachAndSync, 600));
 
     return () => {
-      observer.disconnect();
-      if (initial?.isConnected) initial.remove();
+      cancelled = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+      if (mountedHost?.isConnected) mountedHost.remove();
       setHost(null);
     };
   }, [pathname]);
-
-  useEffect(() => {
-    if (pathname !== "/") return;
-    synchronizeHomepageUi();
-  }, [pathname, host]);
 
   const observedSections = useMemo(() => homeSections, []);
 
@@ -168,27 +164,20 @@ function synchronizeScorePreview(home: HTMLElement) {
   if (!scoreCard) return;
 
   const scoreValue = scoreCard.querySelector<HTMLElement>(".score-number span");
-  if (scoreValue) scoreValue.textContent = String(previewScore);
+  if (scoreValue && scoreValue.textContent !== String(previewScore)) scoreValue.textContent = String(previewScore);
 
   const scoreMarker = scoreCard.querySelector<HTMLElement>(".score-track span");
-  if (scoreMarker) scoreMarker.style.left = `${previewScore}%`;
+  if (scoreMarker && scoreMarker.style.left !== `${previewScore}%`) scoreMarker.style.left = `${previewScore}%`;
 
   const mutedLabels = Array.from(scoreCard.querySelectorAll<SVGTextElement>(".radar-muted"));
   const valueLabels = Array.from(scoreCard.querySelectorAll<SVGTextElement>(".radar-value"));
-  const orderedDimensions = [
-    previewDimensions[0],
-    previewDimensions[1],
-    previewDimensions[2],
-    previewDimensions[3]
-  ];
 
-  orderedDimensions.forEach((dimension, index) => {
-    if (mutedLabels[index]) mutedLabels[index].textContent = dimension.label;
-    if (valueLabels[index]) valueLabels[index].textContent = String(dimension.score);
+  previewDimensions.forEach((dimension, index) => {
+    if (mutedLabels[index] && mutedLabels[index].textContent !== dimension.label) mutedLabels[index].textContent = dimension.label;
+    if (valueLabels[index] && valueLabels[index].textContent !== String(dimension.score)) valueLabels[index].textContent = String(dimension.score);
   });
 
   const description = scoreCard.querySelector(".radar-chart desc");
-  if (description) {
-    description.textContent = `关键词覆盖${previewDimensions[0].score}，结构清晰度${previewDimensions[1].score}，经历证据${previewDimensions[2].score}，系统可读性${previewDimensions[3].score}。总分按关键词覆盖34%、结构清晰度20%、经历证据32%、系统可读性14%计算。`;
-  }
+  const descriptionText = `关键词覆盖${previewDimensions[0].score}，结构清晰度${previewDimensions[1].score}，经历证据${previewDimensions[2].score}，系统可读性${previewDimensions[3].score}。总分按关键词覆盖34%、结构清晰度20%、经历证据32%、系统可读性14%计算。`;
+  if (description && description.textContent !== descriptionText) description.textContent = descriptionText;
 }
