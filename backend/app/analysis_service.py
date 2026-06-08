@@ -38,6 +38,79 @@ def evidence_line(text: str, terms: list[str]) -> str:
     return lines[0] if lines else "暂未找到明确证据句。"
 
 
+def readable_text_ratio(text: str) -> float:
+    compact = re.sub(r"\s", "", text)
+    if not compact:
+        return 0
+    readable = re.findall(r"[\u4e00-\u9fa5A-Za-z0-9%.,，。:：;；/()（）+\-#]", compact)
+    return len(readable) / len(compact)
+
+
+def score_ats_readability(resume_text: str, resume_file_name: str | None, structure_score: int) -> tuple[int, str]:
+    file_name = resume_file_name or ""
+    has_file = bool(file_name)
+    is_plain_text_file = bool(re.search(r"\.(txt|md)$", file_name, re.I))
+    is_parsed_document = bool(re.search(r"\.(pdf|docx)$", file_name, re.I))
+    text_length = len(resume_text.strip())
+    readable_ratio = readable_text_ratio(resume_text)
+    has_enough_text = text_length >= 300
+    has_rich_text = text_length >= 800
+    has_rich_structure = structure_score >= 80
+    has_excellent_structure = structure_score >= 92
+    has_readable_chars = readable_ratio >= 0.65
+    has_very_readable_chars = readable_ratio >= 0.78
+    has_likely_garbled_text = text_length > 0 and readable_ratio < 0.45
+
+    score = 68
+    reasons: list[str] = []
+
+    if not has_file:
+        score += 8
+        reasons.append("基于粘贴文本分析")
+    elif is_plain_text_file:
+        score += 14
+        reasons.append(f"已接收 {file_name}，纯文本格式便于系统读取")
+    elif is_parsed_document:
+        score += 12 if has_enough_text else 4
+        reasons.append(f"已成功解析 {file_name}")
+    else:
+        score += 2
+        reasons.append(f"已接收 {file_name}，该格式存在一定解析不确定性")
+
+    if has_rich_structure:
+        score += 10 if has_excellent_structure else 7
+        reasons.append("栏目结构清晰")
+    elif structure_score < 60:
+        score -= 10
+        reasons.append("栏目结构信号不足")
+
+    if has_rich_text:
+        score += 8
+        reasons.append("可提取文本较充分")
+    elif has_enough_text:
+        score += 5
+        reasons.append("可提取文本长度正常")
+    elif text_length < 160:
+        score -= 18
+        reasons.append("可提取文本过短，可能存在扫描件或解析缺失")
+    else:
+        score -= 6
+        reasons.append("可提取文本偏短")
+
+    if has_very_readable_chars:
+        score += 6
+        reasons.append("文本字符可读性高")
+    elif has_readable_chars:
+        score += 3
+        reasons.append("文本字符可读性正常")
+    elif has_likely_garbled_text:
+        score -= 16
+        reasons.append("疑似存在乱码或不可读字符")
+
+    summary = "；".join(reasons[:4]) or "基于文件格式、文本提取质量、栏目结构和字符可读性进行评估"
+    return clamp(score), summary
+
+
 class AnalysisService:
     async def analyze(self, request: AnalysisRequest) -> AnalysisResponse:
         jd = request.jd_text.strip()
@@ -56,12 +129,7 @@ class AnalysisService:
             + len([marker for marker in selected.structure_markers if contains(resume, marker)]) * 5
             + min(len([line for line in resume.splitlines() if line.strip()]), 10) * 2
         )
-        ats_score = clamp(
-            82
-            - (8 if request.resume_file_name and not re.search(r"\.(txt|md)$", request.resume_file_name, re.I) else 0)
-            - (18 if len(resume) < 160 else 0)
-            + (4 if structure_score >= 75 else 0)
-        )
+        ats_score, ats_summary = score_ats_readability(resume, request.resume_file_name, structure_score)
         score = clamp(keyword_score * 0.34 + structure_score * 0.20 + evidence_score * 0.32 + ats_score * 0.14)
         risk_level = level(score)
 
@@ -148,7 +216,7 @@ class AnalysisService:
                     score=evidence_score,
                     summary="已形成基础证据链" if has_evidence_chain else "动作、对象、方法或结果链条仍需补齐",
                 ),
-                AnalysisDimension(key="atsReadability", label="ATS 可读性", score=ats_score, summary=f"已接收 {request.resume_file_name}" if request.resume_file_name else "基于粘贴文本进行解析"),
+                AnalysisDimension(key="atsReadability", label="ATS 可读性", score=ats_score, summary=ats_summary),
             ],
             findings=findings,
             suggestions=[
