@@ -24,6 +24,8 @@ const previewScore = Math.round(
     previewDimensions[3].score * 0.14
 );
 
+const previewRiskLabel = previewScore > 90 ? "低风险" : previewScore >= 75 ? "中等风险" : "高风险";
+
 const homeSections = [
   { key: "home", label: "首页", english: "Home", selector: ".hero" },
   { key: "intro", label: "产品介绍", english: "Intro", selector: "#intro" },
@@ -35,6 +37,7 @@ export function HomeSideNavigation() {
   const pathname = usePathname();
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [active, setActive] = useState<(typeof homeSections)[number]["key"]>("home");
+  const [sectionVersion, setSectionVersion] = useState(0);
 
   useEffect(() => {
     if (pathname !== "/") {
@@ -58,14 +61,14 @@ export function HomeSideNavigation() {
         home.appendChild(mountedHost);
       }
 
-      setHost(mountedHost);
+      setHost((current) => (current === mountedHost ? current : mountedHost));
       synchronizeHomepageUi();
+      setSectionVersion((value) => value + 1);
     };
 
     attachAndSync();
-    timers.push(window.setTimeout(attachAndSync, 80));
-    timers.push(window.setTimeout(attachAndSync, 240));
-    timers.push(window.setTimeout(attachAndSync, 600));
+    timers.push(window.setTimeout(attachAndSync, 140));
+    timers.push(window.setTimeout(attachAndSync, 420));
 
     return () => {
       cancelled = true;
@@ -94,12 +97,12 @@ export function HomeSideNavigation() {
         const match = entries.find((entry) => entry.element === visible.target);
         if (match) setActive(match.section.key);
       },
-      { threshold: [0.32, 0.48, 0.64], rootMargin: "-18% 0px -18% 0px" }
+      { threshold: [0.36, 0.56], rootMargin: "-20% 0px -20% 0px" }
     );
 
     entries.forEach(({ element }) => observer.observe(element));
     return () => observer.disconnect();
-  }, [host, observedSections, pathname]);
+  }, [host, observedSections, pathname, sectionVersion]);
 
   if (!host || pathname !== "/") return null;
 
@@ -121,10 +124,7 @@ export function HomeSideNavigation() {
           aria-current={active === section.key ? "true" : undefined}
         >
           <i>{String(index + 1).padStart(2, "0")}</i>
-          <span>
-            <strong>{section.label}</strong>
-            <small>{section.english}</small>
-          </span>
+          <span><strong>{section.label}</strong><small>{section.english}</small></span>
         </button>
       ))}
     </nav>,
@@ -135,7 +135,6 @@ export function HomeSideNavigation() {
 function synchronizeHomepageUi() {
   const home = document.querySelector<HTMLElement>(".snap-home");
   if (!home) return;
-
   synchronizeMainNavigation(home);
   synchronizeScorePreview(home);
 }
@@ -143,7 +142,6 @@ function synchronizeHomepageUi() {
 function synchronizeMainNavigation(home: HTMLElement) {
   const nav = home.querySelector<HTMLElement>(".glass-nav .nav-links");
   if (!nav) return;
-
   const currentLabels = Array.from(nav.querySelectorAll("a")).map((anchor) => anchor.textContent?.trim()).join("|");
   const expectedLabels = mainNavItems.map((item) => item.label).join("|");
   if (currentLabels === expectedLabels) return;
@@ -166,12 +164,15 @@ function synchronizeScorePreview(home: HTMLElement) {
   const scoreValue = scoreCard.querySelector<HTMLElement>(".score-number span");
   if (scoreValue && scoreValue.textContent !== String(previewScore)) scoreValue.textContent = String(previewScore);
 
+  const riskPill = scoreCard.querySelector<HTMLElement>(".risk-pill");
+  if (riskPill && riskPill.textContent !== previewRiskLabel) riskPill.textContent = previewRiskLabel;
+  if (riskPill) riskPill.dataset.risk = previewRiskLabel === "高风险" ? "high" : previewRiskLabel === "中等风险" ? "medium" : "low";
+
   const scoreMarker = scoreCard.querySelector<HTMLElement>(".score-track span");
   if (scoreMarker && scoreMarker.style.left !== `${previewScore}%`) scoreMarker.style.left = `${previewScore}%`;
 
   const mutedLabels = Array.from(scoreCard.querySelectorAll<SVGTextElement>(".radar-muted"));
   const valueLabels = Array.from(scoreCard.querySelectorAll<SVGTextElement>(".radar-value"));
-
   previewDimensions.forEach((dimension, index) => {
     if (mutedLabels[index] && mutedLabels[index].textContent !== dimension.label) mutedLabels[index].textContent = dimension.label;
     if (valueLabels[index] && valueLabels[index].textContent !== String(dimension.score)) valueLabels[index].textContent = String(dimension.score);
