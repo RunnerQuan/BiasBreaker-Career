@@ -355,6 +355,263 @@ function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; on
   return (
     <div className="analysis-modal-backdrop" role="presentation" onClick={onClose}>
       <section className="analysis-modal" role="dialog" aria-modal="true" aria-labelledby="analysis-result-title" onClick={(event) => event.stopPropagation()}>
+        <style jsx global>{`
+          .rewrite-card {
+            background:
+              linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.58)),
+              radial-gradient(circle at 0 0, rgba(255, 83, 92, 0.1), transparent 34%),
+              radial-gradient(circle at 100% 100%, rgba(85, 200, 207, 0.15), transparent 38%);
+          }
+
+          .rewrite-section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 16px;
+          }
+
+          .rewrite-section-head h3 {
+            margin: 0;
+          }
+
+          .rewrite-section-head p {
+            margin: 8px 0 0;
+            color: #61708a;
+            font-size: 14px;
+            font-weight: 650;
+            line-height: 1.65;
+          }
+
+          .rewrite-section-head > span {
+            flex: 0 0 auto;
+            padding: 8px 12px;
+            border-radius: 999px;
+            color: #0caeb9;
+            font-size: 13px;
+            font-weight: 900;
+            background: rgba(85, 200, 207, 0.11);
+          }
+
+          .rewrite-suggestion-list {
+            display: grid;
+            gap: 16px;
+          }
+
+          .rewrite-suggestion-card {
+            display: grid;
+            grid-template-columns: 112px 1fr;
+            overflow: hidden;
+            padding: 0;
+            border: 1px solid rgba(255, 83, 92, 0.14);
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.72);
+            box-shadow: 0 18px 40px rgba(23, 42, 69, 0.06);
+          }
+
+          .rewrite-suggestion-card.rewrite-medium {
+            border-color: rgba(255, 153, 43, 0.22);
+          }
+
+          .rewrite-suggestion-card.rewrite-low {
+            border-color: rgba(53, 199, 119, 0.22);
+          }
+
+          .rewrite-risk-rail {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 18px 12px;
+            text-align: center;
+            background: linear-gradient(180deg, rgba(255, 83, 92, 0.12), rgba(255, 83, 92, 0.04));
+          }
+
+          .rewrite-medium .rewrite-risk-rail {
+            background: linear-gradient(180deg, rgba(255, 153, 43, 0.14), rgba(255, 153, 43, 0.04));
+          }
+
+          .rewrite-low .rewrite-risk-rail {
+            background: linear-gradient(180deg, rgba(53, 199, 119, 0.13), rgba(53, 199, 119, 0.04));
+          }
+
+          .rewrite-risk-rail b {
+            display: grid;
+            place-items: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 16px;
+            color: #ff535c;
+            background: rgba(255, 255, 255, 0.74);
+            box-shadow: 0 12px 26px rgba(255, 83, 92, 0.12);
+          }
+
+          .rewrite-medium .rewrite-risk-rail b {
+            color: #ff8a00;
+          }
+
+          .rewrite-low .rewrite-risk-rail b {
+            color: #0ca66f;
+          }
+
+          .rewrite-risk-rail strong {
+            color: var(--ink);
+            font-size: 15px;
+            font-weight: 900;
+            line-height: 1.45;
+          }
+
+          .rewrite-risk-rail span {
+            padding: 6px 10px;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 900;
+            background: #ff535c;
+          }
+
+          .rewrite-medium .rewrite-risk-rail span {
+            background: #ff8a00;
+          }
+
+          .rewrite-low .rewrite-risk-rail span {
+            background: #35c777;
+          }
+
+          .rewrite-content {
+            padding: 18px;
+          }
+
+          .rewrite-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+          }
+
+          .rewrite-title-row strong {
+            color: var(--ink);
+            font-size: 17px;
+            font-weight: 900;
+          }
+
+          .rewrite-title-row button {
+            border: 1px solid rgba(123, 138, 163, 0.18);
+            border-radius: 999px;
+            padding: 8px 12px;
+            color: #31435d;
+            font-weight: 850;
+            background: rgba(255, 255, 255, 0.78);
+            cursor: pointer;
+          }
+
+          .rewrite-compare-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 14px;
+          }
+
+          .rewrite-box {
+            padding: 14px;
+            border-radius: 16px;
+            line-height: 1.7;
+          }
+
+          .rewrite-box small {
+            display: inline-flex;
+            margin-bottom: 8px;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 900;
+          }
+
+          .rewrite-box p {
+            margin: 0;
+            color: #263850;
+            font-size: 14px;
+            font-weight: 700;
+          }
+
+          .rewrite-original {
+            border: 1px solid rgba(255, 83, 92, 0.16);
+            background: rgba(255, 83, 92, 0.055);
+          }
+
+          .rewrite-original small {
+            color: #ff535c;
+            background: rgba(255, 83, 92, 0.1);
+          }
+
+          .rewrite-after {
+            border: 1px solid rgba(85, 200, 207, 0.2);
+            background: rgba(85, 200, 207, 0.08);
+          }
+
+          .rewrite-after small {
+            color: #0caeb9;
+            background: rgba(85, 200, 207, 0.15);
+          }
+
+          .rewrite-risk-box,
+          .rewrite-reason-box {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 15px;
+            color: #51637d;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.65;
+          }
+
+          .rewrite-risk-box {
+            border: 1px solid rgba(255, 83, 92, 0.13);
+            background: rgba(255, 83, 92, 0.045);
+          }
+
+          .rewrite-reason-box {
+            border: 1px solid rgba(85, 200, 207, 0.16);
+            background: rgba(85, 200, 207, 0.065);
+          }
+
+          .rewrite-risk-box strong,
+          .rewrite-reason-box strong {
+            margin-right: 6px;
+            color: var(--ink);
+            font-weight: 900;
+          }
+
+          .rewrite-note {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 16px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            color: #59708d;
+            font-size: 13px;
+            font-weight: 700;
+            background: rgba(85, 200, 207, 0.08);
+          }
+
+          @media (max-width: 920px) {
+            .rewrite-suggestion-card {
+              grid-template-columns: 1fr;
+            }
+
+            .rewrite-risk-rail {
+              flex-direction: row;
+              justify-content: flex-start;
+              text-align: left;
+            }
+
+            .rewrite-compare-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+        `}</style>
         <header className="analysis-modal-head">
           <div>
             <span>{result.providerMode === "llm" ? "模型分析结果" : "规则分析结果"}</span>
@@ -427,47 +684,89 @@ function AnalysisResultModal({ result, onClose }: { result: AnalysisResponse; on
 
             <section className="analysis-modal-card">
               <h3>风险报告与证据引用</h3>
-            <div className="finding-list">
-              {result.findings.map((finding, index) => (
-                <article key={`${finding.type}-${index}`}>
-                  <div>
-                    <strong>{finding.type}</strong>
-                    <span className={`severity severity-${finding.severity}`}>{levelText(finding.severity)}</span>
-                  </div>
-                  <small>{sourceText(finding.source)}</small>
-                  <blockquote>{finding.evidence}</blockquote>
-                  <p>{finding.suggestion}</p>
-                </article>
-              ))}
-            </div>
-          </section>
+              <div className="finding-list">
+                {result.findings.map((finding, index) => (
+                  <article key={`${finding.type}-${index}`}>
+                    <div>
+                      <strong>{finding.type}</strong>
+                      <span className={`severity severity-${finding.severity}`}>{levelText(finding.severity)}</span>
+                    </div>
+                    <small>{sourceText(finding.source)}</small>
+                    <blockquote>{finding.evidence}</blockquote>
+                    <p>{finding.suggestion}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
 
-            <section className="analysis-modal-card">
-              <h3>改写建议</h3>
-            <div className="suggestion-list">
-              {result.suggestions.map((suggestion) => (
-                <article key={suggestion.title}>
-                  <strong>{suggestion.title}</strong>
-                  <p>{suggestion.description}</p>
-                  <em>{suggestion.example}</em>
-                </article>
-              ))}
-            </div>
-          </section>
+            <section className="analysis-modal-card rewrite-card">
+              <div className="rewrite-section-head">
+                <div>
+                  <h3>原句风险与改写建议</h3>
+                  <p>证据约束改写：不编造经历，只把已有表达转译成 ATS 与 HR 更容易识别的岗位语言。</p>
+                </div>
+                <span>共 {result.suggestions.length} 条建议</span>
+              </div>
+              <div className="rewrite-suggestion-list">
+                {result.suggestions.map((suggestion, index) => {
+                  const severity = suggestion.severity ?? "medium";
+                  const original = suggestion.original || "未定位到完整原句，请结合上方风险证据核对原文。";
+                  const risk = suggestion.risk || suggestion.description;
+                  const rewritten = suggestion.rewritten || suggestion.example;
+                  const reason = suggestion.reason || suggestion.description;
+                  return (
+                    <article className={`rewrite-suggestion-card rewrite-${severity}`} key={`${suggestion.title}-${index}`}>
+                      <aside className="rewrite-risk-rail">
+                        <b>!</b>
+                        <span>{levelText(severity)}</span>
+                        <strong>{suggestion.title}</strong>
+                      </aside>
+                      <div className="rewrite-content">
+                        <div className="rewrite-title-row">
+                          <strong>建议 {index + 1}</strong>
+                          <button type="button" onClick={() => void navigator.clipboard?.writeText(rewritten)}>
+                            复制改写后
+                          </button>
+                        </div>
+                        <div className="rewrite-compare-grid">
+                          <div className="rewrite-box rewrite-original">
+                            <small>原句</small>
+                            <p>{original}</p>
+                          </div>
+                          <div className="rewrite-box rewrite-after">
+                            <small>改写后（参考表达）</small>
+                            <p>{rewritten}</p>
+                          </div>
+                        </div>
+                        <div className="rewrite-risk-box">
+                          <strong>风险说明</strong>
+                          {risk}
+                        </div>
+                        <div className="rewrite-reason-box">
+                          <strong>改写理由</strong>
+                          {reason}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="rewrite-note">💡 请根据你的真实经历选择合适表达；如缺少具体数据，用 [待确认] 补充，避免过度包装。</div>
+            </section>
 
             <section className="analysis-modal-card">
               <h3>复核话术与面试解释</h3>
-            <div className="script-list">
-              <article>
-                <strong>人工复核话术</strong>
-                <p>{result.reviewScripts.manualReview}</p>
-              </article>
-              <article>
-                <strong>面试解释</strong>
-                <p>{result.reviewScripts.interviewExplanation}</p>
-              </article>
-            </div>
-          </section>
+              <div className="script-list">
+                <article>
+                  <strong>人工复核话术</strong>
+                  <p>{result.reviewScripts.manualReview}</p>
+                </article>
+                <article>
+                  <strong>面试解释</strong>
+                  <p>{result.reviewScripts.interviewExplanation}</p>
+                </article>
+              </div>
+            </section>
           </div>
         </div>
       </section>
