@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import Link from "next/link";
 
 const cases = [
   {
@@ -120,16 +119,6 @@ export function HomeCaseShowcase() {
             </motion.article>
           ))}
         </div>
-
-        <motion.div className="case-bottom-bar" {...enter(0.34)}>
-          <p><span>✦</span> BiasBreaker Career 不改变你的经历，只改变算法的理解方式。</p>
-          <strong>打破算法偏见，让真实能力被看见。</strong>
-          <Link href="/analyze">
-            <span>用我的简历试试看</span>
-            <small>Try My Resume</small>
-            <b>→</b>
-          </Link>
-        </motion.div>
       </div>
     </section>,
     host
