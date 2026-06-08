@@ -52,6 +52,63 @@
   transform-origin: center;
 }
 
+/* Legacy analyze-page modal: distinct severity icons and explanation icons. */
+.analyze-page .rewrite-risk-rail b {
+  font-size: 0 !important;
+}
+
+.analyze-page .rewrite-risk-rail b::before {
+  display: block;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.analyze-page .rewrite-high .rewrite-risk-rail b::before {
+  content: "▲";
+}
+
+.analyze-page .rewrite-medium .rewrite-risk-rail b::before {
+  content: "!";
+}
+
+.analyze-page .rewrite-low .rewrite-risk-rail b::before {
+  content: "✓";
+}
+
+.analyze-page .rewrite-risk-box,
+.analyze-page .rewrite-reason-box {
+  display: grid !important;
+  grid-template-columns: 34px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.analyze-page .rewrite-risk-box::before,
+.analyze-page .rewrite-reason-box::before {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.analyze-page .rewrite-risk-box::before {
+  content: "!";
+  color: #ff535c;
+  border: 1px solid rgba(255, 83, 92, 0.16);
+}
+
+.analyze-page .rewrite-reason-box::before {
+  content: "✎";
+  color: #0caeb9;
+  border: 1px solid rgba(85, 200, 207, 0.18);
+}
+
 @media (max-width: 1180px) {
   .analyze-page .analyze-pen,
   .history-page .analyze-pen {
