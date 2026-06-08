@@ -1,5 +1,6 @@
 import {
   analyzeResumeInput,
+  calculateTotalScore,
   type AnalysisDimension,
   type AnalysisFinding,
   type AnalysisRequest,
@@ -12,6 +13,20 @@ import type { LLMProvider } from "./model-provider";
 import type { SemanticSignals } from "./semantic-analysis";
 
 type JsonObject = Record<string, unknown>;
+type DimensionKey = AnalysisDimension["key"];
+
+type DimensionAdjustment = {
+  key: DimensionKey;
+  delta: number;
+  reason: string;
+};
+
+const DELTA_LIMITS: Record<DimensionKey, { min: number; max: number }> = {
+  keywordCoverage: { min: -15, max: 15 },
+  structureClarity: { min: -8, max: 5 },
+  evidenceStrength: { min: -20, max: 10 },
+  atsReadability: { min: -5, max: 5 }
+};
 
 export async function analyzeResumeWithLLM(
   input: AnalysisRequest,
@@ -26,11 +41,10 @@ export async function analyzeResumeWithLLM(
       {
         role: "system",
         content: [
-          "你是 BiasBreaker Career 的核心分析引擎，目标是帮助非典型求职者避免被 ATS/招聘算法误读。",
-          "你的工作不是判断候选人强弱，而是判断“真实能力是否被机器和 HR 正确看见”。",
+          "你是 BiasBreaker Career 的语义校准引擎，目标是帮助非典型求职者避免被 ATS/招聘算法误读。",
+          "你不能直接覆盖规则分，也不能直接决定最终总分。规则分是稳定、可复现的底座；你的工作是基于 JD、简历和语义证据，对规则分做有限幅度校准。",
           "必须遵守：1. 只基于输入 JD、简历和 Embedding 语义证据；2. 不编造经历、项目、数据、公司、职位、奖项或结果；3. 不承诺录用；4. 不输出年龄、性别、地域、学校出身等歧视性结论；5. 对岗位隐性门槛只做风险提示，不把它归咎于候选人。",
-          "分析标准：关键词覆盖看 JD 核心能力是否在简历中有字面或同义表达；结构清晰度看教育/项目/实习/技能是否可被解析；经历证据看动作-对象-方法-结果是否闭环；系统可读性（ATS）看格式、片段完整度、可复制文本、术语稳定性。ATS 指招聘系统自动读取和筛选简历的能力，输出时需要用用户能理解的解释。",
-          "改写建议必须是证据约束改写：只能把已有经历转译成岗位语言。若缺少证据，必须提示“待补充/待确认”，不能替用户凭空生成。",
+          "校准原则：关键词覆盖可以因同义表达、跨专业经历转译适度上调或下调；经历证据要更严格，若只有空泛动作词但缺少对象/方法/产出/指标，应下调；结构清晰度和 ATS 可读性只能小幅校准，因为它们主要由系统解析质量决定。",
           "输出严格 JSON，不要 Markdown，不要解释 JSON 外的任何文字。"
         ].join("\n")
       },
@@ -47,13 +61,13 @@ export async function analyzeResumeWithLLM(
 function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanticSignals?: SemanticSignals) {
   return JSON.stringify(
     {
-      task: "生成一份算法可读性完整报告，先识别会被机器误读的点，再给出可执行、可申诉、可复核的材料优化建议。",
+      task: "基于规则分进行语义校准，并生成算法可读性报告。不要直接重评分，只输出每个维度的有限调整项 delta 和理由。",
       outputContract: {
-        score: "0-100 整数。注意：最终系统会按四个维度的加权公式重新计算总分，模型返回 score 仅作参考，不应与维度分冲突。",
-        level: "low | medium | high。注意最终系统会按重新计算后的 score 校准：score < 75 为 high，75-90 为 medium，>90 为 low。",
+        dimensionAdjustments:
+          "必须返回数组。每项包含 key, delta, reason。key 只能是 keywordCoverage/structureClarity/evidenceStrength/atsReadability。delta 是整数，表示在规则分基础上的调整，不是最终分。reason 必须引用 JD/简历中的具体证据或指出缺失证据。",
+        deltaLimits:
+          "系统会强制裁剪：keywordCoverage [-15,+15]；evidenceStrength [-20,+10]；structureClarity [-8,+5]；atsReadability [-5,+5]。不要试图绕过限制。",
         summary: "不超过 80 字，先说核心结论，再说最需要修正的一点。",
-        dimensions:
-          "必须返回 4 项：keywordCoverage/关键词覆盖、structureClarity/结构清晰度、evidenceStrength/经历证据、atsReadability/系统可读性（ATS）。每项 score 0-100，summary 不超过 40 字。",
         findings:
           "返回 2-4 项。每项包含 type,severity,source,evidence,suggestion。evidence 必须引用或概括原文具体证据；suggestion 必须指出如何修，不要泛泛而谈。",
         suggestions:
@@ -62,15 +76,17 @@ function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanti
           "manualReview 是给 HR/招聘方的复核话术，120-180 字；interviewExplanation 是面试解释，100-160 字；岗位名必须简短，不要复制完整 JD。"
       },
       scoringGuidance: {
-        totalScoreFormula: "score = keywordCoverage * 0.34 + structureClarity * 0.20 + evidenceStrength * 0.32 + atsReadability * 0.14",
-        keywordCoverage: "JD 核心词、同义词、能力表达是否被简历覆盖；Embedding 相关但字面缺失时，不能直接判 0，要指出转译缺口。",
-        structureClarity: "栏目标题、分段、项目层级、技能列表是否便于 ATS 定位。",
-        evidenceStrength: "是否有对象、动作、方法、产出、量化指标；没有数字时可建议补充但不能编造。",
-        atsReadability: "PDF/DOCX 已解析为文本，但仍需关注术语稳定、缩写解释、项目职责是否分散。"
+        finalFormula: "最终维度分 = 规则分 + 有界 delta；最终总分 = keywordCoverage * 0.34 + structureClarity * 0.20 + evidenceStrength * 0.32 + atsReadability * 0.14。系统会自动计算，你不需要返回最终 score。",
+        keywordCoverage: "若简历没有字面关键词，但存在同义能力或可证明的跨经历转译，可小幅上调；若只是泛泛接近但没有岗位核心能力，不要上调。",
+        evidenceStrength: "若规则因动作词、对象词误判高分，但实际没有方法、产出、指标或业务结果，应下调；如果有完整证据链但词库漏识别，可小幅上调。",
+        structureClarity: "只在栏目明显混乱、长段落堆叠、时间线不可定位时小幅下调；不要因为内容好就上调结构。",
+        atsReadability: "你只能看到解析后的文本，因此不要大幅调整 ATS；仅在明显存在乱码、术语极不稳定、缩写未解释、职责分散时小幅下调。"
       },
-      ruleScores: fallback.dimensions.map((item) => ({
+      ruleDimensions: fallback.dimensions.map((item) => ({
         key: item.key,
-        score: item.score
+        label: item.label,
+        score: item.score,
+        summary: item.summary
       })),
       semanticSignals,
       jobTitle: compactJobTitle(input.jobTitle, input.jdText),
@@ -86,8 +102,9 @@ function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanti
 function normalizeLLMResponse(text: string, fallback: AnalysisResponse, semanticSignals?: SemanticSignals): AnalysisResponse {
   const parsed = parseJsonObject(text);
   const reviewScripts = asObject(parsed.reviewScripts);
-  const dimensions = normalizeDimensions(parsed.dimensions, fallback.dimensions);
-  const score = recomputeScoreFromDimensions(dimensions);
+  const adjustments = normalizeAdjustments(parsed.dimensionAdjustments);
+  const dimensions = applyAdjustments(fallback.dimensions, adjustments);
+  const score = calculateTotalScore(dimensions);
   const level = riskLevelFromScore(score);
 
   return {
@@ -110,15 +127,34 @@ function normalizeLLMResponse(text: string, fallback: AnalysisResponse, semantic
   };
 }
 
-function recomputeScoreFromDimensions(dimensions: AnalysisDimension[]) {
-  const scores = Object.fromEntries(dimensions.map((item) => [item.key, item.score])) as Partial<Record<AnalysisDimension["key"], number>>;
-  return clampInteger(
-    (scores.keywordCoverage ?? 0) * 0.34 +
-      (scores.structureClarity ?? 0) * 0.2 +
-      (scores.evidenceStrength ?? 0) * 0.32 +
-      (scores.atsReadability ?? 0) * 0.14,
-    0
-  );
+function normalizeAdjustments(value: unknown): DimensionAdjustment[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const record = asObject(item);
+      const key = normalizeDimensionKey(record.key);
+      if (!key) return undefined;
+      const limits = DELTA_LIMITS[key];
+      const rawDelta = Number(record.delta);
+      const delta = Number.isFinite(rawDelta) ? Math.min(limits.max, Math.max(limits.min, Math.round(rawDelta))) : 0;
+      const reason = normalizeString(record.reason, "基于语义证据进行有限校准。");
+      return { key, delta, reason };
+    })
+    .filter((item): item is DimensionAdjustment => Boolean(item && item.delta !== 0));
+}
+
+function applyAdjustments(ruleDimensions: AnalysisDimension[], adjustments: DimensionAdjustment[]) {
+  return ruleDimensions.map((dimension) => {
+    const adjustment = adjustments.find((item) => item.key === dimension.key);
+    if (!adjustment) return dimension;
+    const adjustedScore = clampInteger(dimension.score + adjustment.delta, dimension.score);
+    const sign = adjustment.delta > 0 ? "+" : "";
+    return {
+      ...dimension,
+      score: adjustedScore,
+      summary: `${dimension.summary}；LLM校准 ${sign}${adjustment.delta}：${adjustment.reason}`
+    };
+  });
 }
 
 function parseJsonObject(text: string): JsonObject {
@@ -129,25 +165,6 @@ function parseJsonObject(text: string): JsonObject {
     if (!match) throw new Error("模型未返回有效 JSON。");
     return asObject(JSON.parse(match[0]));
   }
-}
-
-function normalizeDimensions(value: unknown, fallback: AnalysisDimension[]) {
-  if (!Array.isArray(value)) return fallback;
-  const allowed = new Set(fallback.map((item) => item.key));
-  const items = value
-    .map((item) => {
-      const record = asObject(item);
-      const key = typeof record.key === "string" && allowed.has(record.key as AnalysisDimension["key"]) ? record.key : undefined;
-      return {
-        key,
-        label: normalizeString(record.label, ""),
-        score: clampInteger(record.score, 0),
-        summary: normalizeString(record.summary, "")
-      };
-    })
-    .filter((item): item is AnalysisDimension => Boolean(item.key && item.label && item.summary));
-
-  return fallback.map((dimension) => items.find((item) => item.key === dimension.key) || dimension);
 }
 
 function normalizeFindings(value: unknown, fallback: AnalysisFinding[]) {
@@ -200,6 +217,12 @@ function normalizeLevel(value: unknown, fallback: RiskLevel): RiskLevel {
 
 function normalizeSource(value: unknown): AnalysisFinding["source"] {
   return value === "jd" || value === "resume" || value === "system" ? value : "system";
+}
+
+function normalizeDimensionKey(value: unknown): DimensionKey | undefined {
+  return value === "keywordCoverage" || value === "structureClarity" || value === "evidenceStrength" || value === "atsReadability"
+    ? value
+    : undefined;
 }
 
 function asObject(value: unknown): JsonObject {
