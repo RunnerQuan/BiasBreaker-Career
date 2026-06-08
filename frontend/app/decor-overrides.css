@@ -41,13 +41,13 @@
   filter: drop-shadow(0 16px 20px rgba(32, 56, 78, 0.1));
 }
 
-/* Keep both note components in the lower-left corner with identical positioning. */
+/* Keep both note components lower-left while preserving a safe text margin. */
 .analyze-page .analyze-sticky,
 .history-page .history-sticky {
-  left: clamp(30px, 4.5vw, 76px) !important;
+  left: clamp(8px, 1.2vw, 18px) !important;
   right: auto !important;
   top: auto !important;
-  bottom: clamp(52px, 8vh, 96px) !important;
+  bottom: clamp(14px, 2.4vh, 28px) !important;
   transform: rotate(-7deg) !important;
   transform-origin: center;
 }
@@ -70,8 +70,8 @@
 
   .analyze-page .analyze-sticky,
   .history-page .history-sticky {
-    left: 18px !important;
-    bottom: 42px !important;
+    left: 6px !important;
+    bottom: 12px !important;
     opacity: 0.56;
     font-size: 18px !important;
     transform: rotate(-7deg) scale(0.88) !important;
