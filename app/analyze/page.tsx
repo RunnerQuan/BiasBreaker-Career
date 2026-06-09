@@ -5,6 +5,7 @@ import { AnalysisResultModal } from "../../components/AnalysisResultModal";
 import { AppNav } from "../../components/AppNav";
 import type { AnalysisResponse } from "../../lib/analysis";
 import { createHistoryRecord, saveHistoryRecord } from "../../lib/history";
+import { parsePdfInBrowser } from "../../lib/pdf/parsePdfInBrowser";
 
 type ResumeMode = "upload" | "paste";
 
@@ -117,6 +118,15 @@ export default function AnalyzePage() {
   async function parseResumeFile(file: File | null) {
     if (!file) throw new Error("请先上传 PDF、DOCX、TXT 或 MD 格式的简历文件。");
 
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+    if (isPdf) {
+      const result = await parsePdfInBrowser(file);
+      setFileName(file.name);
+      setFileSize(formatFileSize(file.size));
+      return result.text;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -193,7 +203,7 @@ export default function AnalyzePage() {
                 <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt,.md" onChange={handleFileChange} />
                 <UploadIcon />
                 <strong>{fileName ? "简历已选择，点击开始分析后自动解析" : "点击上传或拖拽文件到此处"}</strong>
-                <span>支持 PDF / DOCX / TXT / MD，点击开始分析后将自动解析并调用模型</span>
+                <span>PDF 将通过 MuPDF 在浏览器本地解析；DOCX / TXT / MD 由服务端解析</span>
               </label>
             ) : (
               <textarea
@@ -277,7 +287,7 @@ export default function AnalyzePage() {
 
       <p className="privacy-note">
         <LockIcon />
-        你的数据仅用于分析，不用于模型训练或对外公开，保障隐私安全。
+        PDF 简历在当前浏览器本地解析，仅提取后的文本用于分析；数据不用于模型训练或对外公开。
       </p>
 
       {isLoading && <AnalyzingOverlay phase={analysisPhase} />}
@@ -324,7 +334,7 @@ function levelText(level: AnalysisResponse["level"]) {
 function AnalyzingOverlay({ phase }: { phase: "idle" | "parsing" | "analyzing" }) {
   const steps =
     phase === "parsing"
-      ? ["读取简历文件", "恢复文本结构", "清洗段落与项目符号", "准备模型分析"]
+      ? ["加载 MuPDF 引擎", "本地提取简历文本", "清洗段落与数字", "准备模型分析"]
       : ["解析岗位要求", "比对简历证据", "识别可读性风险", "生成改写与复核话术"];
 
   return (
@@ -335,8 +345,8 @@ function AnalyzingOverlay({ phase }: { phase: "idle" | "parsing" | "analyzing" }
           <span />
           <span />
         </div>
-        <strong>{phase === "parsing" ? "正在解析简历" : "系统正在分析"}</strong>
-        <p>{phase === "parsing" ? "正在提取简历正文并整理结构，随后将自动进入模型分析。" : "正在调用模型理解 JD 与简历内容，请稍等片刻。"}</p>
+        <strong>{phase === "parsing" ? "正在本地解析简历" : "系统正在分析"}</strong>
+        <p>{phase === "parsing" ? "MuPDF 正在当前浏览器中提取简历正文，PDF 文件不会上传到解析服务器。" : "正在调用模型理解 JD 与简历内容，请稍等片刻。"}</p>
         <div>
           {steps.map((step) => (
             <span key={step}>{step}</span>
