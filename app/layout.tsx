@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import "@fontsource/lora/400.css";
+import "@fontsource/lora/700.css";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
@@ -23,7 +25,11 @@ import "./home-risk.css";
 
 export const metadata: Metadata = {
   title: "BiasBreaker Career 破偏求职",
-  description: "识别简历在招聘算法中的可读性风险，优化表达方式，提高被看见的机会。"
+  description: "识别简历在招聘算法中的可读性风险，优化表达方式，提高被看见的机会。",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png"
+  }
 };
 
 export default function RootLayout({

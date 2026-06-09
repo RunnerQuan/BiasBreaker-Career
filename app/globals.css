@@ -130,23 +130,39 @@ button {
 .nav-brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   color: var(--ink);
   text-decoration: none;
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .brand-icon {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 17px;
-  background: radial-gradient(circle at 35% 20%, #ffc9b8, #ff7d80 58%, #f45b73);
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 245, 250, 0.9)),
+    radial-gradient(circle at 30% 24%, rgba(255, 207, 220, 0.95), transparent 42%);
+  border: 1px solid rgba(255, 255, 255, 0.92);
   box-shadow:
-    0 12px 25px rgba(255, 112, 119, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    0 10px 24px rgba(155, 94, 140, 0.12),
+    0 2px 0 rgba(255, 255, 255, 0.75) inset;
+}
+
+.brand-logo {
+  object-fit: contain;
+  padding: 7px;
+}
+
+.brand-name {
+  font-family: "Lora", "Noto Serif SC", Georgia, serif;
+  letter-spacing: -0.02em;
 }
 
 .nav-links {

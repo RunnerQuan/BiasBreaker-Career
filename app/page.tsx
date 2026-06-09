@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 
@@ -391,9 +392,9 @@ function Navbar({ reduceMotion }: { reduceMotion: boolean }) {
     >
       <Link href="/" className="nav-brand" aria-label="BiasBreaker Career 首页">
         <span className="brand-icon">
-          <ShieldStarIcon />
+          <Image src="/logo.png" alt="" fill sizes="60px" className="brand-logo" priority />
         </span>
-        <span>BiasBreaker Career</span>
+        <span className="brand-name">BiasBreaker Career</span>
       </Link>
 
       <nav className="nav-links" aria-label="主导航">
