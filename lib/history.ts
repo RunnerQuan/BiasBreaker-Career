@@ -21,7 +21,16 @@ export function readHistoryRecords(): HistoryRecord[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isHistoryRecord).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+
+    const records = parsed
+      .filter(isHistoryRecord)
+      .map((record) => ({
+        ...record,
+        candidateName: inferCandidateName(record.resumeText, record.resumeFileName)
+      }))
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+
+    return records;
   } catch {
     return [];
   }
@@ -50,7 +59,7 @@ export function createHistoryRecord(input: {
   resumeFileName?: string;
   result: AnalysisResponse;
 }): HistoryRecord {
-  const candidateName = inferCandidateName(input.resumeFileName);
+  const candidateName = inferCandidateName(input.resumeText, input.resumeFileName);
   const targetJob = normalizeTargetJob(input.jobTitle);
 
   return {
@@ -120,7 +129,87 @@ export function buildReportMarkdown(record: HistoryRecord) {
   ].join("\n");
 }
 
-function inferCandidateName(fileName?: string) {
+function inferCandidateName(resumeText?: string, fileName?: string) {
+  const textName = extractNameFromResumeText(resumeText);
+  if (textName) return textName;
+  return inferCandidateNameFromFileName(fileName);
+}
+
+function extractNameFromResumeText(resumeText?: string) {
+  if (!resumeText?.trim()) return "";
+
+  const lines = resumeText
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 30);
+
+  for (const line of lines) {
+    const explicitMatch = line.match(/^(?:姓名|名字|name)\s*[:：]\s*([\u4e00-\u9fff·]{2,8}|[A-Za-z][A-Za-z .'-]{1,40})$/i);
+    if (explicitMatch) {
+      const name = sanitizeCandidateName(explicitMatch[1]);
+      if (isLikelyCandidateName(name)) return name;
+    }
+  }
+
+  const headerLines = lines.slice(0, 12);
+  for (const line of headerLines) {
+    const compact = sanitizeCandidateName(line);
+    if (isLikelyCandidateName(compact)) return compact;
+
+    const leadingChineseName = line.match(/^([\u4e00-\u9fff·]{2,4})(?=\s|[|｜·•]|$)/);
+    if (leadingChineseName) {
+      const name = sanitizeCandidateName(leadingChineseName[1]);
+      if (isLikelyCandidateName(name)) return name;
+    }
+  }
+
+  return "";
+}
+
+function sanitizeCandidateName(value: string) {
+  return value
+    .replace(/[|｜•]+.*$/, "")
+    .replace(/\s*(?:电话|手机|邮箱|email|tel|求职意向|应聘岗位).*$/i, "")
+    .replace(/^[^\u4e00-\u9fffA-Za-z]+|[^\u4e00-\u9fffA-Za-z· .'-]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLikelyCandidateName(value: string) {
+  if (!value) return false;
+
+  const blocked = new Set([
+    "个人简历",
+    "求职简历",
+    "教育背景",
+    "教育经历",
+    "实习经历",
+    "项目经历",
+    "工作经历",
+    "校园经历",
+    "个人信息",
+    "基本信息",
+    "专业技能",
+    "技能证书",
+    "自我评价",
+    "求职意向",
+    "联系方式"
+  ]);
+
+  if (blocked.has(value)) return false;
+  if (/\d|@|https?:|www\./i.test(value)) return false;
+  if (/^(?:男|女|本科|硕士|博士|党员|群众)$/.test(value)) return false;
+
+  if (/^[\u4e00-\u9fff]{2,4}$/.test(value)) return true;
+  if (/^[\u4e00-\u9fff]{1,4}·[\u4e00-\u9fff]{1,6}$/.test(value)) return true;
+  if (/^[A-Za-z][A-Za-z .'-]{1,40}$/.test(value) && value.split(/\s+/).length <= 5) return true;
+
+  return false;
+}
+
+function inferCandidateNameFromFileName(fileName?: string) {
   if (!fileName) return "我的简历";
   const withoutExt = fileName.replace(/\.[^.]+$/, "");
   const cleaned = withoutExt
