@@ -12,6 +12,7 @@ type WorkerFailure = {
 type WorkerResponse = WorkerSuccess | WorkerFailure;
 
 const MAX_PDF_SIZE = 10 * 1024 * 1024;
+const PDF_PARSE_TIMEOUT_MS = 30_000;
 
 export async function parsePdfInBrowser(file: File): Promise<{ text: string; pageCount: number }> {
   if (typeof window === "undefined") {
@@ -29,20 +30,42 @@ export async function parsePdfInBrowser(file: File): Promise<{ text: string; pag
       type: "module"
     });
 
-    const terminate = () => worker.terminate();
+    let settled = false;
+
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      worker.terminate();
+      callback();
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      finish(() => {
+        reject(new Error("MuPDF 加载或解析超时。请检查浏览器控制台中的 Worker/WASM 错误，或更换浏览器后重试。"));
+      });
+    }, PDF_PARSE_TIMEOUT_MS);
 
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      terminate();
-      if (event.data.type === "success") {
-        resolve({ text: event.data.text, pageCount: event.data.pageCount });
-      } else {
-        reject(new Error(event.data.message));
-      }
+      finish(() => {
+        if (event.data.type === "success") {
+          resolve({ text: event.data.text, pageCount: event.data.pageCount });
+        } else {
+          reject(new Error(event.data.message));
+        }
+      });
     };
 
     worker.onerror = (event) => {
-      terminate();
-      reject(new Error(event.message || "MuPDF 解析线程运行失败。"));
+      finish(() => {
+        reject(new Error(event.message || "MuPDF Worker 脚本加载失败。"));
+      });
+    };
+
+    worker.onmessageerror = () => {
+      finish(() => {
+        reject(new Error("MuPDF Worker 返回了无法读取的数据。"));
+      });
     };
 
     worker.postMessage({ type: "parse", buffer }, [buffer]);
