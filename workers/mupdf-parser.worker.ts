@@ -16,9 +16,14 @@ type ParseFailure = {
   message: string;
 };
 
-const workerScope: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobalScope;
+type WorkerScope = {
+  onmessage: ((event: MessageEvent<ParseRequest>) => void) | null;
+  postMessage(message: ParseSuccess | ParseFailure): void;
+};
 
-workerScope.onmessage = (event: MessageEvent<ParseRequest>) => {
+const workerScope = self as unknown as WorkerScope;
+
+workerScope.onmessage = (event) => {
   if (event.data.type !== "parse") return;
 
   let document: mupdf.Document | undefined;
@@ -55,14 +60,12 @@ workerScope.onmessage = (event: MessageEvent<ParseRequest>) => {
       throw new Error("未能从 PDF 中提取到足够的可读文本，该文件可能是扫描件或文字已转为图片/路径。");
     }
 
-    const response: ParseSuccess = { type: "success", text, pageCount };
-    workerScope.postMessage(response);
+    workerScope.postMessage({ type: "success", text, pageCount });
   } catch (error) {
-    const response: ParseFailure = {
+    workerScope.postMessage({
       type: "error",
       message: error instanceof Error ? error.message : "PDF 解析失败。"
-    };
-    workerScope.postMessage(response);
+    });
   } finally {
     document?.destroy();
   }
