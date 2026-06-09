@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { rm, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import mammoth from "mammoth";
+import { getDocumentProxy } from "unpdf";
 
 export const runtime = "nodejs";
 
@@ -75,74 +71,43 @@ export async function POST(request: Request) {
 }
 
 async function parsePdfText(buffer: Buffer) {
-  const externalText = await parsePdfTextWithPdftotext(buffer);
-  if (externalText && isHighQualityPdfText(externalText)) {
-    return normalizeExtractedResumeText(externalText);
-  }
-
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-
-  const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(buffer),
-    disableWorker: true
-  } as unknown as Parameters<typeof pdfjs.getDocument>[0]);
-  const document = await loadingTask.promise;
-
+  const document = await getDocumentProxy(new Uint8Array(buffer));
   const pages: string[] = [];
+
   try {
     for (let pageIndex = 1; pageIndex <= document.numPages; pageIndex += 1) {
       const page = await document.getPage(pageIndex);
-      const content = await page.getTextContent();
-      pages.push(reconstructPdfPageText(content.items));
+
+      try {
+        const content = await page.getTextContent({
+          includeMarkedContent: false,
+          disableNormalization: false
+        });
+        pages.push(reconstructPdfPageText(content.items));
+      } finally {
+        page.cleanup();
+      }
     }
   } finally {
     await document.destroy();
   }
 
-  return normalizeExtractedResumeText(pages.join("\n\n"));
-}
+  const text = normalizeExtractedResumeText(pages.join("\n\n"));
 
-async function parsePdfTextWithPdftotext(buffer: Buffer) {
-  const id = randomUUID();
-  const inputPath = join(tmpdir(), `biasbreaker-${id}.pdf`);
-  const outputPath = join(tmpdir(), `biasbreaker-${id}.txt`);
-
-  try {
-    await writeFile(inputPath, buffer);
-    await runPdftotext(inputPath, outputPath);
-    return await readFile(outputPath, "utf-8");
-  } catch {
-    return "";
-  } finally {
-    await Promise.all([
-      rm(inputPath, { force: true }).catch(() => undefined),
-      rm(outputPath, { force: true }).catch(() => undefined)
-    ]);
+  if (!isHighQualityPdfText(text)) {
+    throw new Error("PDF 文本层质量较低，可能是扫描件、受保护文档或使用了无法映射的特殊字体。");
   }
-}
 
-function runPdftotext(inputPath: string, outputPath: string) {
-  return new Promise<void>((resolve, reject) => {
-    const command = process.env.PDFTOTEXT_PATH || "pdftotext";
-    const child = spawn(command, ["-layout", "-enc", "UTF-8", inputPath, outputPath], {
-      windowsHide: true
-    });
-
-    child.once("error", reject);
-    child.once("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`pdftotext exited with code ${code}`));
-    });
-  });
+  return text;
 }
 
 function isHighQualityPdfText(text: string) {
   const trimmed = text.trim();
   if (trimmed.length < 80) return false;
 
-  const nullCount = (trimmed.match(/\u0000/g) || []).length;
+  const invalidCount = (trimmed.match(/[\u0000\uFFFD]/g) || []).length;
   const readableCount = (trimmed.match(/[\u4e00-\u9fffA-Za-z0-9]/g) || []).length;
-  return nullCount === 0 && readableCount / Math.max(1, trimmed.length) > 0.35;
+  return invalidCount === 0 && readableCount / Math.max(1, trimmed.length) > 0.35;
 }
 
 type PdfTextLikeItem = {
