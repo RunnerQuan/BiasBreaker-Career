@@ -1,35 +1,48 @@
+import * as mupdf from "mupdf";
+
 type ParseRequest = {
   type: "parse";
+  requestId: number;
   buffer: ArrayBuffer;
 };
 
 type ParseSuccess = {
   type: "success";
+  requestId: number;
   text: string;
   pageCount: number;
 };
 
 type ParseFailure = {
   type: "error";
+  requestId: number;
   message: string;
+};
+
+type WorkerReady = {
+  type: "ready";
 };
 
 type WorkerScope = {
   onmessage: ((event: MessageEvent<ParseRequest>) => void) | null;
-  postMessage(message: ParseSuccess | ParseFailure): void;
+  postMessage(message: ParseSuccess | ParseFailure | WorkerReady): void;
 };
 
 const workerScope = self as unknown as WorkerScope;
 
+// 静态导入完成意味着 MuPDF JavaScript 与 WASM 已完成初始化，可以开始接收解析任务。
+workerScope.postMessage({ type: "ready" });
+
 workerScope.onmessage = async (event) => {
   if (event.data.type !== "parse") return;
 
+  const { requestId, buffer } = event.data;
+
   try {
-    const mupdf = await import("mupdf");
     let document: InstanceType<typeof mupdf.Document> | undefined;
 
     try {
-      document = mupdf.Document.openDocument(event.data.buffer, "application/pdf");
+      document = mupdf.Document.openDocument(buffer, "application/pdf");
 
       if (document.needsPassword()) {
         throw new Error("该 PDF 已加密，请先解除密码保护后重新上传。");
@@ -60,13 +73,14 @@ workerScope.onmessage = async (event) => {
         throw new Error("未能从 PDF 中提取到足够的可读文本，该文件可能是扫描件或文字已转为图片/路径。");
       }
 
-      workerScope.postMessage({ type: "success", text, pageCount });
+      workerScope.postMessage({ type: "success", requestId, text, pageCount });
     } finally {
       document?.destroy();
     }
   } catch (error) {
     workerScope.postMessage({
       type: "error",
+      requestId,
       message:
         error instanceof Error
           ? `MuPDF 初始化或解析失败：${error.message}`
