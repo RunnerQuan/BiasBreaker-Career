@@ -143,7 +143,7 @@ export function ResumeChatAssistant({ result, context }: ResumeChatAssistantProp
           value={input}
           maxLength={500}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="继续追问本次分析结果，例如：帮我把第二段经历改得更像数据分析岗位"
+          placeholder="继续追问本次分析结果"
           aria-label="输入追问内容"
         />
         <button type="submit" disabled={!input.trim() || isSending} aria-label="发送追问">
