@@ -10,6 +10,21 @@ const emptyNodeModule = path.resolve(__dirname, "lib/shims/empty-node-module.js"
 const nextConfig = {
   webpack(config, { isServer }) {
     if (!isServer) {
+      config.target = ["web", "es2022"];
+      config.experiments = {
+        ...(config.experiments || {}),
+        topLevelAwait: true,
+        asyncWebAssembly: true
+      };
+      config.output.environment = {
+        ...(config.output.environment || {}),
+        asyncFunction: true,
+        arrowFunction: true,
+        const: true,
+        destructuring: true,
+        dynamicImport: true,
+        module: true
+      };
       config.resolve.fallback = {
         ...(config.resolve.fallback || {}),
         fs: false,
