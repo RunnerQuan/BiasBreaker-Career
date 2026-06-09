@@ -1,5 +1,3 @@
-import * as mupdf from "mupdf";
-
 type ParseRequest = {
   type: "parse";
   buffer: ArrayBuffer;
@@ -23,51 +21,57 @@ type WorkerScope = {
 
 const workerScope = self as unknown as WorkerScope;
 
-workerScope.onmessage = (event) => {
+workerScope.onmessage = async (event) => {
   if (event.data.type !== "parse") return;
 
-  let document: mupdf.Document | undefined;
-
   try {
-    document = mupdf.Document.openDocument(event.data.buffer, "application/pdf");
+    const mupdf = await import("mupdf");
+    let document: InstanceType<typeof mupdf.Document> | undefined;
 
-    if (document.needsPassword()) {
-      throw new Error("该 PDF 已加密，请先解除密码保护后重新上传。");
-    }
+    try {
+      document = mupdf.Document.openDocument(event.data.buffer, "application/pdf");
 
-    const pageCount = document.countPages();
-    if (pageCount === 0) throw new Error("PDF 中没有可读取页面。");
-    if (pageCount > 20) throw new Error("简历 PDF 页数不能超过 20 页。");
-
-    const pages: string[] = [];
-
-    for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
-      const page = document.loadPage(pageIndex);
-      try {
-        const structuredText = page.toStructuredText("preserve-whitespace");
-        try {
-          pages.push(structuredText.asText());
-        } finally {
-          structuredText.destroy();
-        }
-      } finally {
-        page.destroy();
+      if (document.needsPassword()) {
+        throw new Error("该 PDF 已加密，请先解除密码保护后重新上传。");
       }
-    }
 
-    const text = normalizeExtractedText(pages.join("\n\n"));
-    if (!isHighQualityText(text)) {
-      throw new Error("未能从 PDF 中提取到足够的可读文本，该文件可能是扫描件或文字已转为图片/路径。");
-    }
+      const pageCount = document.countPages();
+      if (pageCount === 0) throw new Error("PDF 中没有可读取页面。");
+      if (pageCount > 20) throw new Error("简历 PDF 页数不能超过 20 页。");
 
-    workerScope.postMessage({ type: "success", text, pageCount });
+      const pages: string[] = [];
+
+      for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+        const page = document.loadPage(pageIndex);
+        try {
+          const structuredText = page.toStructuredText("preserve-whitespace");
+          try {
+            pages.push(structuredText.asText());
+          } finally {
+            structuredText.destroy();
+          }
+        } finally {
+          page.destroy();
+        }
+      }
+
+      const text = normalizeExtractedText(pages.join("\n\n"));
+      if (!isHighQualityText(text)) {
+        throw new Error("未能从 PDF 中提取到足够的可读文本，该文件可能是扫描件或文字已转为图片/路径。");
+      }
+
+      workerScope.postMessage({ type: "success", text, pageCount });
+    } finally {
+      document?.destroy();
+    }
   } catch (error) {
     workerScope.postMessage({
       type: "error",
-      message: error instanceof Error ? error.message : "PDF 解析失败。"
+      message:
+        error instanceof Error
+          ? `MuPDF 初始化或解析失败：${error.message}`
+          : "MuPDF 初始化或解析失败。"
     });
-  } finally {
-    document?.destroy();
   }
 };
 
