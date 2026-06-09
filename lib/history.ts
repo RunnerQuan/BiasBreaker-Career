@@ -6,6 +6,8 @@ export type HistoryRecord = {
   id: string;
   candidateName: string;
   targetJob: string;
+  jdText?: string;
+  resumeText?: string;
   resumeFileName?: string;
   createdAt: string;
   result: AnalysisResponse;
@@ -43,6 +45,8 @@ export function deleteHistoryRecords(ids: string[]) {
 
 export function createHistoryRecord(input: {
   jobTitle: string;
+  jdText?: string;
+  resumeText?: string;
   resumeFileName?: string;
   result: AnalysisResponse;
 }): HistoryRecord {
@@ -53,6 +57,8 @@ export function createHistoryRecord(input: {
     id: input.result.analysisId,
     candidateName,
     targetJob,
+    jdText: input.jdText?.trim(),
+    resumeText: input.resumeText?.trim(),
     resumeFileName: input.resumeFileName,
     createdAt: input.result.createdAt,
     result: input.result

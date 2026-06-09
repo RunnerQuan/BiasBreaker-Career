@@ -214,6 +214,12 @@ export default function HistoryPage() {
           title={`${activeRecord.candidateName} 的分析报告`}
           subtitle={`${activeRecord.targetJob} · ${activeRecord.result.summary}`}
           createdAtLabel={`生成时间：${formatHistoryTime(activeRecord.createdAt)}`}
+          chatContext={{
+            jobTitle: activeRecord.targetJob,
+            jdText: activeRecord.jdText,
+            resumeText: activeRecord.resumeText,
+            resumeFileName: activeRecord.resumeFileName
+          }}
         />
       )}
       {pendingDeleteIds.length > 0 && (
