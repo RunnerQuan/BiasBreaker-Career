@@ -150,3 +150,6 @@ export async function parsePdfInBrowser(file: File): Promise<{ text: string; pag
     currentWorker.postMessage({ type: "parse", requestId, buffer }, [buffer]);
   });
 }
+
+// 该模块只在简历分析页面的客户端 bundle 中使用；bundle 加载后立即预热 Worker/WASM。
+preloadMupdf();
