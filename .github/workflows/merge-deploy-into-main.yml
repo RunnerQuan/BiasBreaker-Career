@@ -1,0 +1,98 @@
+name: Merge deploy into main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    if: ${{ !contains(github.event.head_commit.message || '', '[skip deploy merge]') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge deploy and preserve main-specific changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main deploy
+          git checkout -B main origin/main
+
+          preserve_dir="$(mktemp -d)"
+          mkdir -p "$preserve_dir/app" "$preserve_dir/components" "$preserve_dir/public"
+
+          # Preserve files changed only on main. They will be restored into the
+          # deploy branch's new frontend/ directory layout after the merge.
+          [ -f app/globals.css ] && cp app/globals.css "$preserve_dir/app/globals.css"
+          [ -f components/ResumeChatAssistant.tsx ] && cp components/ResumeChatAssistant.tsx "$preserve_dir/components/ResumeChatAssistant.tsx"
+          [ -f public/assistant.png ] && cp public/assistant.png "$preserve_dir/public/assistant.png"
+          [ -f public/candidate.png ] && cp public/candidate.png "$preserve_dir/public/candidate.png"
+
+          set +e
+          git merge --no-ff --no-commit origin/deploy
+          merge_status=$?
+          set -e
+
+          if [ "$merge_status" -ne 0 ]; then
+            # The deploy branch owns the monorepo directory restructuring.
+            # Resolve structural conflicts in favor of deploy, then restore the
+            # main-only UI changes into their new frontend paths below.
+            while IFS= read -r path; do
+              [ -z "$path" ] && continue
+              git checkout --theirs -- "$path" 2>/dev/null || git rm -f -- "$path" 2>/dev/null || true
+              git add -A -- "$path" 2>/dev/null || true
+            done < <(git diff --name-only --diff-filter=U)
+          fi
+
+          mkdir -p frontend/app frontend/components frontend/public
+          [ -f "$preserve_dir/app/globals.css" ] && cp "$preserve_dir/app/globals.css" frontend/app/globals.css
+          [ -f "$preserve_dir/components/ResumeChatAssistant.tsx" ] && cp "$preserve_dir/components/ResumeChatAssistant.tsx" frontend/components/ResumeChatAssistant.tsx
+          [ -f "$preserve_dir/public/assistant.png" ] && cp "$preserve_dir/public/assistant.png" frontend/public/assistant.png
+          [ -f "$preserve_dir/public/candidate.png" ] && cp "$preserve_dir/public/candidate.png" frontend/public/candidate.png
+
+          # Ensure the root no longer contains the former standalone frontend
+          # directories after adopting deploy's monorepo structure.
+          rm -rf app components data lib public workers
+
+          # README stays at repository root, while its logo is now in frontend/public.
+          for readme in README.md README.en.md; do
+            if [ -f "$readme" ]; then
+              sed -i 's#src="public/logo.png"#src="frontend/public/logo.png"#g' "$readme"
+              sed -i 's#src="./public/logo.png"#src="./frontend/public/logo.png"#g' "$readme"
+              python3 - "$readme" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          text = path.read_text(encoding="utf-8")
+          old = '<p align="center">[中文](README.md) · [English](README.en.md)</p>'
+          new = '''<p align="center">
+            <a href="README.md">中文</a>
+            ·
+            <a href="README.en.md">English</a>
+          </p>'''
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+            fi
+          done
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Nothing to merge."
+            exit 0
+          fi
+
+          git commit -m "Merge deploy into main and preserve main UI changes [skip deploy merge]"
+          git push origin main
