@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { FormEvent, Fragment, ReactNode, useMemo, useRef, useState } from "react";
 import type { AnalysisResponse } from "../lib/analysis";
 
@@ -22,9 +23,9 @@ type ResumeChatAssistantProps = {
 
 const quickQuestions = [
   { label: "我最该先改哪三处？", icon: "A" },
-  { label: "帮我优化项目经历", icon: "D" },
-  { label: "这份简历怎么准备面试？", icon: "M" },
-  { label: "哪些建议不能照抄？", icon: "P" }
+  { label: "帮我优化项目经历", icon: "B" },
+  { label: "这份简历怎么准备面试？", icon: "C" },
+  { label: "哪些建议不能照抄？", icon: "D" }
 ];
 
 export function ResumeChatAssistant({ result, context }: ResumeChatAssistantProps) {
@@ -92,7 +93,13 @@ export function ResumeChatAssistant({ result, context }: ResumeChatAssistantProp
       <header className="resume-chat-head">
         <div className="resume-chat-title">
           <span>
-            <SparkIcon />
+            <Image
+              src="/logo.png"
+              alt="BiasBreaker Career"
+              width={44}
+              height={44}
+              style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }}
+            />
           </span>
           <div>
             <h3>分析追问助手</h3>
@@ -263,10 +270,6 @@ function levelText(level: AnalysisResponse["level"]) {
   if (level === "low") return "低风险";
   if (level === "high") return "高风险";
   return "中等风险";
-}
-
-function SparkIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c.8 4.2 2.8 6.2 7 7-4.2.8-6.2 2.8-7 7-.8-4.2-2.8-6.2-7-7 4.2-.8 6.2-2.8 7-7Z" /></svg>;
 }
 
 function BotIcon() {
