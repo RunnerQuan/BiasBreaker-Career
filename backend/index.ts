@@ -2,10 +2,10 @@ import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { randomUUID } from "node:crypto";
-import { analyzeResumeInput, type AnalysisRequest, type AnalysisResponse } from "../lib/analysis";
-import { analyzeResumeWithLLM } from "../lib/llm-analysis";
-import { createEmbeddingProvider, createLLMProvider } from "../lib/model-provider";
-import { createSemanticSignals } from "../lib/semantic-analysis";
+import { analyzeResumeInput, type AnalysisRequest, type AnalysisResponse } from "../frontend/lib/analysis";
+import { analyzeResumeWithLLM } from "../frontend/lib/llm-analysis";
+import { createEmbeddingProvider, createLLMProvider } from "../frontend/lib/model-provider";
+import { createSemanticSignals } from "../frontend/lib/semantic-analysis";
 
 type JobStage = "queued" | "embedding" | "llm" | "completed" | "failed";
 type JobStatus = "queued" | "running" | "completed" | "failed";
