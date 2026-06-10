@@ -6,7 +6,11 @@
 
 <p align="center"><em>AI 求职反霸凌助手</em></p>
 
-<p align="center">[中文](README.md) · [English](README.en.md)</p>
+<p align="center">
+  <a href="README.md">中文</a>
+  ·
+  <a href="README.en.md">English</a>
+</p>
 
 BiasBreaker Career 是一个**面向算法弱势求职者的 AI 求职反霸凌助手**。它关注的不是“把简历包装得更好看”，而是帮助大学生、转专业求职者、非名校背景求职者、经历表达不规范者等更容易被算法筛选误伤的人，看见招聘系统可能如何读取自己，并把真实经历转译成 ATS 与 HR 更容易理解的岗位语言。
 
