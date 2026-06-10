@@ -6,7 +6,11 @@
 
 <p align="center"><em>AI anti-bullying career assistant for algorithmically disadvantaged job seekers</em></p>
 
-<p align="center">[中文](README.md) · [English](README.en.md)</p>
+<p align="center">
+  <a href="README.md">中文</a>
+  ·
+  <a href="README.en.md">English</a>
+</p>
 
 BiasBreaker Career is an **AI anti-bullying career assistant for algorithmically disadvantaged job seekers**. It is not a generic resume polishing tool. It helps students, career switchers, candidates from less privileged backgrounds, and applicants whose experience is easy to misread understand how recruiting systems may parse their resumes, then translate real experience into job-relevant language that ATS tools and human reviewers can recognize more fairly.
 
