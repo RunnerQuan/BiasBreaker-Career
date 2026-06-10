@@ -3,8 +3,8 @@ module.exports = {
     {
       name: "biasbreaker-api",
       cwd: __dirname,
-      script: "node_modules/tsx/dist/cli.mjs",
-      args: "index.ts",
+      script: "npm",
+      args: "start",
       instances: 1,
       exec_mode: "fork",
       autorestart: true,
