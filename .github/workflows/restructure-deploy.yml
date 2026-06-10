@@ -34,7 +34,7 @@ jobs:
             done
           }
 
-          move_if_exists app components lib public workers
+          move_if_exists app components data lib public workers
           move_if_exists package.json package-lock.json npm-shrinkwrap.json pnpm-lock.yaml yarn.lock
           move_if_exists next.config.js next.config.mjs next.config.ts
           move_if_exists postcss.config.js postcss.config.mjs postcss.config.cjs
@@ -43,6 +43,14 @@ jobs:
 
           # The standalone backend reuses analysis modules from the frontend package.
           sed -i 's#"../lib/#"../frontend/lib/#g' backend/index.ts
+
+          # README files remain at repository root, so image paths must include frontend/.
+          for readme in README.md README.en.md; do
+            if [ -f "$readme" ]; then
+              sed -i 's#src="public/logo.png"#src="frontend/public/logo.png"#g' "$readme"
+              sed -i 's#src="./public/logo.png"#src="./frontend/public/logo.png"#g' "$readme"
+            fi
+          done
 
           cat > netlify.toml <<'EOF'
           [build]
