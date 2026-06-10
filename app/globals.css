@@ -3625,8 +3625,8 @@ button {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 31px;
-  height: 31px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   color: #4c8dff;
   background: rgba(80, 145, 255, 0.12);
@@ -3638,13 +3638,22 @@ button {
   box-shadow: 0 10px 18px rgba(77, 137, 249, 0.18);
 }
 
+/* Ensure image avatars fill the avatar container without squeezing content */
+.resume-chat-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 .resume-chat-message > div {
-  max-width: min(322px, calc(100% - 46px));
+  max-width: min(322px, calc(100% - 64px));
   padding: 13px 15px;
   border-radius: 16px;
   color: #31435d;
   font-size: 13px;
-  font-weight: 720;
+  font-weight: 410;
   line-height: 1.72;
   background: rgba(247, 249, 252, 0.92);
   box-shadow: 0 12px 24px rgba(36, 58, 88, 0.08);
@@ -3764,7 +3773,7 @@ button {
   color: var(--ink);
   font: inherit;
   font-size: 13px;
-  font-weight: 760;
+  font-weight: 410;
   background: transparent;
 }
 

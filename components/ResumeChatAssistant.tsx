@@ -273,11 +273,27 @@ function levelText(level: AnalysisResponse["level"]) {
 }
 
 function BotIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="8" width="14" height="10" rx="4" /><path d="M12 5v3M9 13h.1M15 13h.1M9 18l-2 2M15 18l2 2" /></svg>;
+  return (
+    <Image
+      src="/assistant.png"
+      alt="assistant avatar"
+      width={40}
+      height={40}
+      style={{ borderRadius: "50%", objectFit: "cover" }}
+    />
+  );
 }
 
 function UserIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0" /></svg>;
+  return (
+    <Image
+      src="/candidate.png"
+      alt="user avatar"
+      width={40}
+      height={40}
+      style={{ borderRadius: "50%", objectFit: "cover" }}
+    />
+  );
 }
 
 function SendIcon() {
