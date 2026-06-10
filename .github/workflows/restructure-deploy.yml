@@ -1,0 +1,102 @@
+name: Finalize deploy branch layout
+
+on:
+  push:
+    branches: [deploy]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize-layout:
+    if: ${{ !contains(github.event.head_commit.message || '', '[skip restructure]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: deploy
+          fetch-depth: 0
+
+      - name: Finalize frontend and backend layout
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p frontend
+
+          move_dir_if_needed() {
+            src="$1"
+            dest="$2"
+            if [ -d "$src" ] && [ ! -e "$dest" ]; then
+              git mv "$src" "$dest"
+            fi
+          }
+
+          move_file_if_needed() {
+            src="$1"
+            dest="$2"
+            if [ -f "$src" ] && [ ! -e "$dest" ]; then
+              mkdir -p "$(dirname "$dest")"
+              git mv "$src" "$dest"
+            fi
+          }
+
+          move_dir_if_needed app frontend/app
+          move_dir_if_needed components frontend/components
+          move_dir_if_needed data frontend/data
+          move_dir_if_needed lib frontend/lib
+          move_dir_if_needed public frontend/public
+          move_dir_if_needed workers frontend/workers
+
+          move_file_if_needed package-lock.json frontend/package-lock.json
+          move_file_if_needed npm-shrinkwrap.json frontend/npm-shrinkwrap.json
+          move_file_if_needed pnpm-lock.yaml frontend/pnpm-lock.yaml
+          move_file_if_needed yarn.lock frontend/yarn.lock
+          move_file_if_needed next.config.js frontend/next.config.js
+          move_file_if_needed next.config.mjs frontend/next.config.mjs
+          move_file_if_needed next.config.ts frontend/next.config.ts
+          move_file_if_needed postcss.config.js frontend/postcss.config.js
+          move_file_if_needed postcss.config.mjs frontend/postcss.config.mjs
+          move_file_if_needed postcss.config.cjs frontend/postcss.config.cjs
+          move_file_if_needed eslint.config.js frontend/eslint.config.js
+          move_file_if_needed eslint.config.mjs frontend/eslint.config.mjs
+          move_file_if_needed eslint.config.cjs frontend/eslint.config.cjs
+          move_file_if_needed tsconfig.json frontend/tsconfig.json
+          move_file_if_needed next-env.d.ts frontend/next-env.d.ts
+
+          # Root package.json remains the monorepo workspace manifest.
+          if [ -f backend/index.ts ]; then
+            sed -i 's#"../lib/#"../frontend/lib/#g' backend/index.ts
+          fi
+
+          for readme in README.md README.en.md; do
+            if [ -f "$readme" ]; then
+              sed -i 's#src="public/logo.png"#src="frontend/public/logo.png"#g' "$readme"
+              sed -i 's#src="./public/logo.png"#src="./frontend/public/logo.png"#g' "$readme"
+            fi
+          done
+
+          cat > netlify.toml <<'EOF'
+          [build]
+            base = "frontend"
+            command = "npm run build"
+
+          [build.environment]
+            NODE_VERSION = "22"
+          EOF
+
+          git status --short
+
+      - name: Commit finalized layout
+        shell: bash
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "Layout is already finalized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Finalize deploy directory layout [skip restructure]"
+          git push origin deploy
