@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.png" alt="BiasBreaker Career logo" width="96" />
+  <img src="frontend/public/logo.png" alt="BiasBreaker Career logo" width="96" />
 </p>
 
 <h1 align="center">BiasBreaker Career</h1>
