@@ -34,7 +34,7 @@ const app = Fastify({
   logger: true,
   bodyLimit: 1024 * 1024,
   requestTimeout: 180_000,
-  connectionTimeout: 15_000,
+  connectionTimeout: 0,
   keepAliveTimeout: 72_000
 });
 
