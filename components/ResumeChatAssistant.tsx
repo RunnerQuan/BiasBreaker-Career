@@ -96,9 +96,9 @@ export function ResumeChatAssistant({ result, context }: ResumeChatAssistantProp
             <Image
               src="/logo.png"
               alt="BiasBreaker Career"
-              width={44}
-              height={44}
-              style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }}
+              width={52}
+              height={52}
+              style={{ width: "116%", height: "116%", objectFit: "contain", padding: 0 }}
             />
           </span>
           <div>
