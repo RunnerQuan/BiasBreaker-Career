@@ -28,6 +28,25 @@ const DELTA_LIMITS: Record<DimensionKey, { min: number; max: number }> = {
   atsReadability: { min: -5, max: 5 }
 };
 
+const FINDING_TYPE_LABELS: Record<string, string> = {
+  keywordGap: "岗位关键词缺口",
+  keywordCoverage: "岗位关键词覆盖不足",
+  missingKeywords: "岗位关键词缺失",
+  evidenceMisalignment: "经历证据与岗位要求不匹配",
+  weakEvidence: "经历证据不足",
+  evidenceGap: "经历证据不足",
+  missingMetrics: "成果量化不足",
+  lackOfMetrics: "成果量化不足",
+  translatableSkills: "可迁移能力未充分转译",
+  transferableSkills: "可迁移能力未充分转译",
+  atsReadability: "系统可读性（ATS）风险",
+  atsRisk: "系统可读性（ATS）风险",
+  structureIssue: "简历结构表达问题",
+  structureClarity: "简历结构表达问题",
+  unclearResponsibility: "职责表达不清",
+  genericDescription: "经历描述过于泛化"
+};
+
 export async function analyzeResumeWithLLM(
   input: AnalysisRequest,
   provider: LLMProvider,
@@ -46,6 +65,7 @@ export async function analyzeResumeWithLLM(
           "必须遵守：1. 只基于输入 JD、简历和 Embedding 语义证据；2. 不编造经历、项目、数据、公司、职位、奖项或结果；3. 不承诺录用；4. 不输出年龄、性别、地域、学校出身等歧视性结论；5. 对岗位隐性门槛只做风险提示，不把它归咎于候选人。",
           "校准原则：关键词覆盖可以因同义表达、跨专业经历转译适度上调或下调；经历证据要更严格，若只有空泛动作词但缺少对象/方法/产出/指标，应下调；结构清晰度和 ATS 可读性只能小幅校准，因为它们主要由系统解析质量决定。",
           "改写原则：每条 suggestion 必须包含 original、risk、rewritten、reason、severity。original 必须来自简历原文或对原文的忠实摘录；risk 必须说明算法/HR 误读风险；rewritten 只能改写已有经历，缺少数据时用 [待确认：...] 占位；reason 解释为什么这样改。",
+          "所有面向用户展示的字段必须使用简体中文。findings.type 必须是简洁、自然的中文问题名称，禁止输出 keywordGap、evidenceMisalignment、translatableSkills 等英文枚举、变量名或 camelCase 标识。",
           "输出严格 JSON，不要 Markdown，不要解释 JSON 外的任何文字。"
         ].join("\n")
       },
@@ -70,7 +90,7 @@ function buildPrompt(input: AnalysisRequest, fallback: AnalysisResponse, semanti
           "系统会强制裁剪：keywordCoverage [-15,+15]；evidenceStrength [-20,+10]；structureClarity [-8,+5]；atsReadability [-5,+5]。不要试图绕过限制。",
         summary: "不超过 80 字，先说核心结论，再说最需要修正的一点。",
         findings:
-          "返回 2-4 项。每项包含 type,severity,source,evidence,suggestion。evidence 必须引用或概括原文具体证据；suggestion 必须指出如何修，不要泛泛而谈。",
+          "返回 2-4 项。每项包含 type,severity,source,evidence,suggestion。type 必须是面向求职者展示的简体中文问题名称，不得使用英文枚举、变量名或 camelCase，例如不得输出 keywordGap、evidenceMisalignment、translatableSkills。可使用“岗位关键词缺口”“经历证据与岗位要求不匹配”“可迁移能力未充分转译”“成果量化不足”“系统可读性（ATS）风险”等自然中文名称。evidence 必须引用或概括原文具体证据；suggestion 必须指出如何修，不要泛泛而谈。",
         suggestions:
           "返回 3 项。每项必须包含 title,description,example,original,risk,rewritten,reason,severity。severity 为 low/medium/high。original 是简历原句或忠实摘录；risk 是误读风险；rewritten 是改写后可替换文本；reason 是改写理由；example 应与 rewritten 保持一致。缺少真实数据时必须使用 [待确认：具体数据/指标]，不能编造。",
         reviewScripts:
@@ -180,12 +200,12 @@ function parseJsonObject(text: string): JsonObject {
 }
 
 function normalizeFindings(value: unknown, fallback: AnalysisFinding[]) {
-  if (!Array.isArray(value)) return fallback;
+  if (!Array.isArray(value)) return fallback.map((item) => ({ ...item, type: normalizeFindingType(item.type) }));
   const items = value
     .map((item) => {
       const record = asObject(item);
       return {
-        type: normalizeString(record.type, ""),
+        type: normalizeFindingType(record.type),
         severity: normalizeLevel(record.severity, "medium"),
         source: normalizeSource(record.source),
         evidence: normalizeString(record.evidence, ""),
@@ -194,7 +214,23 @@ function normalizeFindings(value: unknown, fallback: AnalysisFinding[]) {
     })
     .filter((item) => item.type && item.evidence && item.suggestion);
 
-  return items.length ? items.slice(0, 6) : fallback;
+  return items.length
+    ? items.slice(0, 6)
+    : fallback.map((item) => ({ ...item, type: normalizeFindingType(item.type) }));
+}
+
+function normalizeFindingType(value: unknown) {
+  const raw = normalizeString(value, "待优化问题");
+  const direct = FINDING_TYPE_LABELS[raw];
+  if (direct) return direct;
+
+  const normalizedKey = raw.replace(/[\s_-]+/g, "").toLowerCase();
+  const matchedEntry = Object.entries(FINDING_TYPE_LABELS).find(
+    ([key]) => key.replace(/[\s_-]+/g, "").toLowerCase() === normalizedKey
+  );
+  if (matchedEntry) return matchedEntry[1];
+
+  return /[A-Za-z]/.test(raw) && !/[\u4e00-\u9fff]/.test(raw) ? "待优化问题" : raw;
 }
 
 function normalizeSuggestions(value: unknown, fallback: AnalysisSuggestion[]) {
