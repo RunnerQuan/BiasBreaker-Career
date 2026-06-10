@@ -7,6 +7,11 @@ import { createSemanticSignals } from "../../../lib/semantic-analysis";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const backendBaseUrl = process.env.BACKEND_API_BASE_URL?.replace(/\/+$/, "");
+  if (backendBaseUrl) {
+    return NextResponse.redirect(`${backendBaseUrl}/api/analyze`, 307);
+  }
+
   let payload: AnalysisRequest;
 
   try {
