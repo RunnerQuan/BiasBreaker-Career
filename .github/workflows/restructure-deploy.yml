@@ -1,4 +1,4 @@
-name: Restructure deploy branch
+name: Finalize deploy branch layout
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  restructure:
+  finalize-layout:
     if: ${{ !contains(github.event.head_commit.message || '', '[skip restructure]') }}
     runs-on: ubuntu-latest
     steps:
@@ -18,33 +18,58 @@ jobs:
           ref: deploy
           fetch-depth: 0
 
-      - name: Move frontend project into frontend directory
+      - name: Finalize frontend and backend layout
         shell: bash
         run: |
           set -euo pipefail
 
           mkdir -p frontend
-          rm -f frontend/README.tmp
 
-          move_if_exists() {
-            for path in "$@"; do
-              if [ -e "$path" ]; then
-                git mv "$path" frontend/
-              fi
-            done
+          move_dir_if_needed() {
+            src="$1"
+            dest="$2"
+            if [ -d "$src" ] && [ ! -e "$dest" ]; then
+              git mv "$src" "$dest"
+            fi
           }
 
-          move_if_exists app components data lib public workers
-          move_if_exists package.json package-lock.json npm-shrinkwrap.json pnpm-lock.yaml yarn.lock
-          move_if_exists next.config.js next.config.mjs next.config.ts
-          move_if_exists postcss.config.js postcss.config.mjs postcss.config.cjs
-          move_if_exists eslint.config.js eslint.config.mjs eslint.config.cjs
-          move_if_exists tsconfig.json next-env.d.ts
+          move_file_if_needed() {
+            src="$1"
+            dest="$2"
+            if [ -f "$src" ] && [ ! -e "$dest" ]; then
+              mkdir -p "$(dirname "$dest")"
+              git mv "$src" "$dest"
+            fi
+          }
 
-          # The standalone backend reuses analysis modules from the frontend package.
-          sed -i 's#"../lib/#"../frontend/lib/#g' backend/index.ts
+          move_dir_if_needed app frontend/app
+          move_dir_if_needed components frontend/components
+          move_dir_if_needed data frontend/data
+          move_dir_if_needed lib frontend/lib
+          move_dir_if_needed public frontend/public
+          move_dir_if_needed workers frontend/workers
 
-          # README files remain at repository root, so image paths must include frontend/.
+          move_file_if_needed package-lock.json frontend/package-lock.json
+          move_file_if_needed npm-shrinkwrap.json frontend/npm-shrinkwrap.json
+          move_file_if_needed pnpm-lock.yaml frontend/pnpm-lock.yaml
+          move_file_if_needed yarn.lock frontend/yarn.lock
+          move_file_if_needed next.config.js frontend/next.config.js
+          move_file_if_needed next.config.mjs frontend/next.config.mjs
+          move_file_if_needed next.config.ts frontend/next.config.ts
+          move_file_if_needed postcss.config.js frontend/postcss.config.js
+          move_file_if_needed postcss.config.mjs frontend/postcss.config.mjs
+          move_file_if_needed postcss.config.cjs frontend/postcss.config.cjs
+          move_file_if_needed eslint.config.js frontend/eslint.config.js
+          move_file_if_needed eslint.config.mjs frontend/eslint.config.mjs
+          move_file_if_needed eslint.config.cjs frontend/eslint.config.cjs
+          move_file_if_needed tsconfig.json frontend/tsconfig.json
+          move_file_if_needed next-env.d.ts frontend/next-env.d.ts
+
+          # Root package.json remains the monorepo workspace manifest.
+          if [ -f backend/index.ts ]; then
+            sed -i 's#"../lib/#"../frontend/lib/#g' backend/index.ts
+          fi
+
           for readme in README.md README.en.md; do
             if [ -f "$readme" ]; then
               sed -i 's#src="public/logo.png"#src="frontend/public/logo.png"#g' "$readme"
@@ -61,33 +86,17 @@ jobs:
             NODE_VERSION = "22"
           EOF
 
-          cat > package.json <<'EOF'
-          {
-            "name": "biasbreaker-career-monorepo",
-            "private": true,
-            "workspaces": [
-              "frontend",
-              "backend"
-            ],
-            "scripts": {
-              "frontend:dev": "npm --prefix frontend run dev",
-              "frontend:build": "npm --prefix frontend run build",
-              "backend:start": "npm --prefix backend start"
-            }
-          }
-          EOF
-
           git status --short
 
-      - name: Commit restructured layout
+      - name: Commit finalized layout
         shell: bash
         run: |
           if git diff --quiet && git diff --cached --quiet; then
-            echo "No restructuring changes required."
+            echo "Layout is already finalized."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Restructure deploy branch into frontend and backend [skip restructure]"
+          git commit -m "Finalize deploy directory layout [skip restructure]"
           git push origin deploy
