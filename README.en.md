@@ -14,7 +14,7 @@
 
 BiasBreaker Career is an **AI anti-bullying career assistant for algorithmically disadvantaged job seekers**. It is not a generic resume polishing tool. It helps students, career switchers, candidates from less privileged backgrounds, and applicants whose experience is easy to misread understand how recruiting systems may parse their resumes, then translate real experience into job-relevant language that ATS tools and human reviewers can recognize more fairly.
 
-As recruiting workflows increasingly rely on keyword search, automated screening, and model-based ranking, many candidates are not rejected because they lack ability. They are rejected because they do not know what the algorithm is looking for. BiasBreaker Career turns this opaque screening pressure into an explainable and actionable evidence chain: users provide a target job description and a resume, then the system analyzes role fit, ATS readability, evidence strength, and expression structure. A contextual chat assistant inside the report modal helps users ask follow-up questions such as "What should I fix first?", "How should I rewrite this project?", and "How can I explain this in an interview?"
+As recruiting workflows increasingly rely on keyword search, automated screening, and model-based ranking, many candidates are not rejected because they lack ability. They are rejected because they do not know what the algorithm is looking for. BiasBreaker Career turns this opaque screening pressure into an explainable and actionable evidence chain: users provide a target job description and a resume, then the system analyzes keyword coverage, structure clarity, experience evidence, and system readability. A contextual chat assistant inside the report modal helps users ask follow-up questions such as "What should I fix first?", "How should I rewrite this project?", and "How can I explain this in an interview?"
 
 The project does not replace recruiters, promise screening results, or encourage fake optimization for algorithms. Its goal is to help job seekers identify potential algorithmic misreads, expression bias, and information asymmetry, then present their authentic experience in a fairer and more legible way.
 
@@ -27,18 +27,20 @@ The project does not replace recruiters, promise screening results, or encourage
 - **Evidence-chain scoring**: Checks whether the resume supports claims with projects, actions, methods, objects, outcomes, and metrics instead of only stacking keywords.
 - **LLM calibration with rule-based fallback**: Uses an LLM to calibrate rule-based results within bounded score deltas. If the model is unavailable, the system still returns a rule-based report.
 - **Semantic matching signals**: Uses an embedding model when available to compare the job description with resume chunks and surface strong or weak evidence.
+- **Browser-side PDF parsing**: Parses PDF files locally in the browser with a MuPDF Worker; DOCX, TXT, and MD files are parsed through the server API.
 - **Contextual report chat assistant**: Adds a right-side chat panel inside the analysis report modal. The assistant answers based on the current job description, resume text, and report.
 - **Local history management**: Stores reports in browser localStorage for later viewing, filtering, deletion, and Markdown export.
+- **Optional standalone backend**: Next.js API Routes can run the analysis directly, or forward analysis and chat requests to a Fastify backend through `BACKEND_API_BASE_URL` for long-running model calls and queue control.
 
 ## Quick Start
 
-This project is a single Next.js application. Server-side capabilities are implemented with Next.js API Routes.
+The project uses npm workspaces. The frontend is a Next.js 15 App Router app, and the backend is an optional Fastify service.
 
 ```powershell
 cd C:\Files\Study\Codes\Contest\Zhilian-Zhaopin-AI-Contest\BiasBreaker-Career
 npm install
-Copy-Item .env.example .env.local
-npm run dev
+Copy-Item .env.example frontend\.env.local
+npm run frontend:dev
 ```
 
 Then open:
@@ -49,32 +51,55 @@ http://localhost:3000
 
 The app can run without model API keys. If LLM or embedding configuration is missing, the system falls back to the built-in rule-based analysis logic.
 
+### Enable the Standalone Backend
+
+By default, the frontend's Next.js API Routes run the analysis directly. To forward analysis and chat requests to the standalone Fastify backend, open two terminals:
+
+```powershell
+# Terminal 1: start the backend, default http://127.0.0.1:3001
+Copy-Item backend\.env.example backend\.env
+npm run backend:start
+```
+
+```powershell
+# Terminal 2: start the frontend
+Copy-Item .env.example frontend\.env.local
+Add-Content frontend\.env.local "BACKEND_API_BASE_URL=http://127.0.0.1:3001"
+npm run frontend:dev
+```
+
+After `BACKEND_API_BASE_URL` is configured, frontend `/api/analyze` and `/api/chat` requests are redirected to the corresponding backend endpoints with HTTP 307.
+
 ## Environment Variables
 
-Copy `.env.example` to `.env.local` and fill in the variables you need:
+For frontend local development, copy the root `.env.example` to `frontend/.env.local`. For standalone backend deployment, copy `backend/.env.example` to `backend/.env`.
 
-| Variable | Purpose |
-| --- | --- |
-| `DEFAULT_LLM_PROVIDER` | LLM provider identifier. The example default is `mimo` |
-| `DEFAULT_LLM_MODEL` | Chat model used for resume analysis and report Q&A |
-| `MIMO_API_KEY` | LLM API key |
-| `MIMO_BASE_URL` | OpenAI-compatible LLM endpoint |
-| `DEFAULT_EMBEDDING_PROVIDER` | Embedding provider identifier. The example default is `hunyuan` |
-| `DEFAULT_EMBEDDING_MODEL` | Embedding model used for semantic matching |
-| `HUNYUAN_API_KEY` | Embedding API key |
-| `HUNYUAN_BASE_URL` | OpenAI-compatible embedding endpoint |
-| `MODEL_TIMEOUT_SECONDS` | LLM request timeout |
-| `EMBEDDING_TIMEOUT_SECONDS` | Embedding request timeout |
-| `PDFTOTEXT_PATH` | Optional path to an external `pdftotext` executable for better PDF extraction |
+| Variable | Used By | Purpose |
+| --- | --- | --- |
+| `DEFAULT_LLM_PROVIDER` | Frontend / Backend | LLM provider identifier. The example default is `mimo` |
+| `DEFAULT_LLM_MODEL` | Frontend / Backend | Chat model used for resume analysis and report Q&A |
+| `MIMO_API_KEY` | Frontend / Backend | LLM API key |
+| `MIMO_BASE_URL` | Frontend / Backend | OpenAI-compatible LLM endpoint. It may be a base URL, `/v1`, or `/chat/completions` |
+| `DEFAULT_EMBEDDING_PROVIDER` | Frontend / Backend | Embedding provider identifier. The example default is `hunyuan` |
+| `DEFAULT_EMBEDDING_MODEL` | Frontend / Backend | Embedding model used for semantic matching |
+| `HUNYUAN_API_KEY` | Frontend / Backend | Embedding API key |
+| `HUNYUAN_BASE_URL` | Frontend / Backend | OpenAI-compatible embedding endpoint. It may be a base URL, `/v1`, or `/embeddings` |
+| `MODEL_TIMEOUT_SECONDS` | Frontend / Backend | LLM request timeout |
+| `EMBEDDING_TIMEOUT_SECONDS` | Frontend / Backend | Embedding request timeout |
+| `BACKEND_API_BASE_URL` | Frontend | Optional. Forwards analysis and chat APIs to the standalone backend |
+| `HOST` | Backend | Fastify host, defaults to `127.0.0.1` |
+| `PORT` | Backend | Fastify port, defaults to `3001` |
+| `ALLOWED_ORIGINS` | Backend | Comma-separated CORS allowlist |
+| `MAX_CONCURRENT_JOBS` | Backend | Maximum number of concurrent async analysis jobs |
 
 ## User Flow
 
 1. Open the homepage and start an analysis.
 2. Enter the target job title and job description.
 3. Upload a PDF, DOCX, TXT, or MD resume, or paste resume text directly.
-4. Run the analysis. The system returns scores, risk explanations, a dimension radar chart, prioritized issues, and sentence-level rewrite suggestions.
+4. Run the analysis. The system parses the resume, then returns scores, risk explanations, a dimension radar chart, prioritized issues, and sentence-level rewrite suggestions.
 5. Use the right-side report chat assistant for follow-up questions.
-6. Open the history page to review past reports or export a report as Markdown.
+6. Open the history page to review past reports, search by candidate or role, filter by risk level, batch delete, or export reports as Markdown.
 
 ## Analysis Flow
 
@@ -87,7 +112,7 @@ flowchart LR
   D --> G["Resume Matching"]
   F --> G
   G --> H["Rule-Based Scoring and Evidence Chain Analysis"]
-  H --> I["Embedding Semantic Matching (Optional Enhancement Signal)"]
+  H --> I["Embedding Semantic Matching (Optional)"]
   H --> J["Bounded LLM Calibration"]
   I -.-> J
   J --> K["Analysis Report"]
@@ -114,33 +139,38 @@ The total score is not a simple keyword hit rate. It combines the career lexicon
 
 ```text
 BiasBreaker-Career/
-├── app/
-│   ├── api/
-│   │   ├── analyze/          # Resume analysis API
-│   │   ├── chat/             # Report chat assistant API
-│   │   └── parse-resume/     # PDF/DOCX/TXT/MD resume parsing API
-│   ├── analyze/              # Resume analysis page
-│   ├── history/              # History page
-│   ├── page.tsx              # Homepage
-│   └── globals.css           # Global styles
-├── components/
-│   ├── AnalysisResultModal.tsx   # Analysis report modal
-│   ├── ResumeChatAssistant.tsx   # Right-side contextual chat assistant
-│   ├── DimensionRadar.tsx        # Dimension radar chart
-│   └── AppNav.tsx                # App navigation
-├── data/
-│   ├── career-lexicon.json       # Base career capability lexicon
-│   ├── career-lexicon-extra.json # Extended lexicon
-│   └── career-lexicon-extra-2.json
-├── lib/
-│   ├── analysis.ts           # Rule scoring, risk detection, suggestion generation
-│   ├── lexicon.ts            # Lexicon loading, direction detection, synonym expansion
-│   ├── llm-analysis.ts       # LLM calibration
-│   ├── semantic-analysis.ts  # Embedding semantic matching
-│   ├── model-provider.ts     # OpenAI-compatible model adapter
-│   └── history.ts            # Browser local history
-├── docs/                     # Product docs and contest materials
-├── package.json
+├── frontend/                         # Next.js frontend and default API Routes
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── analyze/              # Resume analysis API, can forward to standalone backend
+│   │   │   ├── chat/                 # Report chat assistant API, can forward to standalone backend
+│   │   │   └── parse-resume/         # DOCX/TXT/MD resume parsing API
+│   │   ├── analyze/                  # Resume analysis page
+│   │   ├── history/                  # History page
+│   │   ├── page.tsx                  # Homepage
+│   │   └── globals.css               # Global styles
+│   ├── components/
+│   │   ├── AnalysisResultModal.tsx   # Analysis report modal
+│   │   ├── ResumeChatAssistant.tsx   # Right-side contextual chat assistant
+│   │   ├── DimensionRadar.tsx        # Dimension radar chart
+│   │   └── AppNav.tsx                # App navigation
+│   ├── data/                         # Career capability lexicons
+│   ├── lib/
+│   │   ├── analysis.ts               # Rule scoring, risk detection, suggestion generation
+│   │   ├── lexicon.ts                # Lexicon loading, direction detection, synonym expansion
+│   │   ├── llm-analysis.ts           # LLM calibration
+│   │   ├── semantic-analysis.ts      # Embedding semantic matching
+│   │   ├── model-provider.ts         # OpenAI-compatible model adapter
+│   │   ├── history.ts                # Browser local history
+│   │   └── pdf/parsePdfInBrowser.ts  # Browser MuPDF parsing entry
+│   └── workers/mupdf-parser.worker.ts
+├── backend/
+│   ├── index.ts                      # Optional Fastify analysis backend
+│   ├── ecosystem.config.cjs          # PM2 deployment config
+│   └── package.json
+├── docs/                             # Product docs and contest materials
+├── package.json                      # npm workspaces and root scripts
+├── package-lock.json
 └── README.md
 ```
 
@@ -148,16 +178,9 @@ BiasBreaker-Career/
 
 ### `POST /api/parse-resume`
 
-Parses an uploaded resume file.
+Parses uploaded DOCX, TXT, or MD resume files.
 
-Supported formats:
-
-- PDF
-- DOCX
-- TXT
-- MD
-
-The response includes the file name, file size, and extracted text. PDF parsing first tries external `pdftotext`, then falls back to `pdfjs-dist`.
+PDF files do not use this endpoint. They are parsed locally in the browser through a MuPDF Worker, which reduces the need to upload the original PDF file to the server and avoids some server-side PDF parsing dependency issues.
 
 ### `POST /api/analyze`
 
@@ -169,7 +192,8 @@ Core request fields:
 {
   "jobTitle": "Backend Software Development",
   "jdText": "Job description text",
-  "resumeText": "Resume text"
+  "resumeText": "Resume text",
+  "resumeFileName": "resume.pdf"
 }
 ```
 
@@ -202,6 +226,16 @@ Core request fields:
 
 The assistant only answers based on the current JD, resume, and analysis report. It does not invent experience, certificates, schools, companies, or project outcomes. If the model is unavailable, it falls back to report findings, suggestions, and review scripts.
 
+### Additional Standalone Backend APIs
+
+Besides the synchronous analysis endpoint, the Fastify backend also provides async job APIs for long-running model calls:
+
+- `GET /health`: Check service status, queue length, and current concurrency.
+- `POST /api/analysis-jobs`: Create an async analysis job.
+- `GET /api/analysis-jobs/:jobId`: Query job status and result.
+
+The current frontend calls the synchronous `/api/analyze` endpoint by default. The async job APIs are backend extension capabilities.
+
 ## Local History and Privacy
 
 History records are stored in browser `localStorage` under:
@@ -220,36 +254,57 @@ Each record contains:
 - Original resume text
 - Resume file name
 
-The job description and resume text are used as hidden context for the chat assistant in historical reports. They are not displayed directly in the report modal. The current project has no database and no separate backend service. For a public deployment, user consent, encryption, deletion controls, and a server-side data strategy should be added.
+PDF files are parsed in the browser through a MuPDF Worker, so the original PDF file is not uploaded to the `parse-resume` endpoint. Analysis requests send the extracted text, job description, and required context. The current project has no database, and history records stay in the user's browser. For a public deployment, user consent, encryption, deletion controls, log redaction, and a server-side data strategy should be added.
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 App Router
+- **Frontend framework**: Next.js 15 App Router
 - **Language**: TypeScript
 - **UI**: React 19, Tailwind CSS v4, Framer Motion
-- **File parsing**: `mammoth`, `pdfjs-dist`, optional external `pdftotext`
+- **File parsing**: Browser MuPDF Worker, `mammoth`
 - **Model interface**: OpenAI-compatible Chat Completions and Embeddings
+- **Optional backend**: Fastify 5, `@fastify/cors`
 - **Storage**: Browser localStorage
+- **Deployment config**: Netlify Next.js plugin, PM2 backend config
 
 ## Development Commands
 
+Root commands:
+
 ```powershell
-npm run dev      # Start the development server
-npm run build    # Production build
-npm run lint     # Run ESLint
+npm run frontend:dev      # Start the frontend development server
+npm run frontend:build    # Build the frontend
+npm run backend:start     # Start the optional Fastify backend
+```
+
+Frontend subdirectory commands:
+
+```powershell
+cd frontend
+npm run dev
+npm run build
+npm run lint
+```
+
+Backend subdirectory commands:
+
+```powershell
+cd backend
+npm run dev
+npm run start
 ```
 
 ## FAQ
 
 ### 1. Can I try it without model API keys?
 
-Yes. If LLM or embedding configuration is missing, the system falls back to the rule engine in `lib/analysis.ts`.
+Yes. If LLM or embedding configuration is missing, the system falls back to the rule engine in `frontend/lib/analysis.ts`.
 
 ### 2. What if PDF parsing quality is poor?
 
-Scanned or encrypted PDFs may not provide extractable text. Use a copyable PDF, DOCX, TXT, or MD file. You can also install Poppler and set `PDFTOTEXT_PATH` to improve PDF text extraction.
+PDF files are parsed by the MuPDF Worker in the browser. Scanned PDFs, encrypted PDFs, files larger than 10MB, or browsers that cannot load the Worker/WASM assets may fail to provide extractable text. Use a copyable PDF, DOCX, TXT, or MD file, or switch to pasted text mode.
 
-### 3. Why does `npm run dev` or `npm run build` seem to take a long time?
+### 3. Why does `npm run frontend:dev` or `npm run frontend:build` seem to take a long time?
 
 The Next.js development server is meant to keep running. It does not exit automatically. On Windows, if `.next/trace` is locked or the port is occupied, stop project-related Node processes and clear the cache:
 
@@ -258,13 +313,17 @@ Get-CimInstance Win32_Process |
   Where-Object { $_.Name -match '^node(\.exe)?$' -and $_.CommandLine -like '*BiasBreaker-Career*' } |
   ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 
-Remove-Item -LiteralPath .next -Recurse -Force -ErrorAction SilentlyContinue
-npm run dev
+Remove-Item -LiteralPath frontend\.next -Recurse -Force -ErrorAction SilentlyContinue
+npm run frontend:dev
 ```
 
 ### 4. Why is the chat assistant conservative?
 
 This is intentional. The assistant is instructed not to invent experience, data, certificates, or project outcomes. When evidence is missing, it should say that the current resume does not show it and suggest truthful ways to add or verify evidence.
+
+### 5. When should I use the standalone backend?
+
+Local demos and lightweight deployments can use only the Next.js API Routes. If model calls take a long time, you need concurrency control, you want a health endpoint, or you want to separate server logic from Netlify functions, deploy `backend/` and configure `BACKEND_API_BASE_URL` in the frontend.
 
 ## Suitable Use Cases
 
